@@ -17,8 +17,10 @@ const AppHeaderHTML = `
         </div>
         <nav class="header-center">
             <a href="${rootPrefix}index.html">Discover</a>
+            <a href="${pathPrefix}category.html?type=movies">Movies</a>
+            <a href="${pathPrefix}category.html?type=books">Books</a>
+            <a href="${pathPrefix}category.html?type=games">Games</a>
             <a href="${pathPrefix}mylist.html">My List</a>
-            <a href="${pathPrefix}category.html">Categories</a>
         </nav>
         <div class="header-right">
             <div class="search-bar d-none d-md-flex">
@@ -36,7 +38,7 @@ const AppHeaderHTML = `
                     <ul class="dropdown-menu dropdown-menu-dark dropdown-menu-end shadow-lg">
                         <li><a class="dropdown-item" href="${pathPrefix}profile.html"><i class="fa-solid fa-circle-user me-2"></i>Profile</a></li>
                         <li><a class="dropdown-item" href="${pathPrefix}setting.html"><i class="fa-solid fa-gear me-2"></i>Settings</a></li>
-                        <li><a class="dropdown-item d-none" href="${pathPrefix}admin.html"><i class="fa-solid fa-shield-halved me-2"></i>Admin Panel</a></li>
+                        <li id="admin-nav-item" style="display: none;"><a class="dropdown-item" href="${pathPrefix}admin.html"><i class="fa-solid fa-shield-halved me-2"></i>Admin Panel</a></li>
                         <li><hr class="dropdown-divider"></li>
                         <li><a class="dropdown-item text-danger" href="#" id="logout-btn"><i class="fa-solid fa-right-from-bracket me-2"></i>Logout</a></li>
                     </ul>
