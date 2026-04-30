@@ -1,10 +1,20 @@
-// ============================================
-// CULTIFY — APP.JS
-// ============================================
+// Determine if we are in the root or in /pages/
+const isRootPage = !window.location.pathname.includes('/pages/');
+const toPages = isRootPage ? 'pages/' : '';
+const toRoot = isRootPage ? '' : '../';
 
 // --- AUTH SYSTEM ---
 function isLoggedIn() { return localStorage.getItem('cultify_logged_in') === 'true'; }
-function setLoggedIn(val) { localStorage.setItem('cultify_logged_in', val ? 'true' : 'false'); }
+function setLoggedIn(val, name = '', role = '') { 
+    localStorage.setItem('cultify_logged_in', val ? 'true' : 'false'); 
+    if (val) {
+        localStorage.setItem('cultify_user_name', name);
+        localStorage.setItem('cultify_user_role', role);
+    } else {
+        localStorage.removeItem('cultify_user_name');
+        localStorage.removeItem('cultify_user_role');
+    }
+}
 function showLoginModal() {
     const m = document.getElementById('login-modal');
     if (m) m.classList.add('active');
@@ -16,17 +26,6 @@ function closeLoginModal() {
 window.closeLoginModal = closeLoginModal;
 window.showLoginModal = showLoginModal;
 
-function setLoggedIn(val, name = '', role = '') { 
-    localStorage.setItem('cultify_logged_in', val ? 'true' : 'false'); 
-    if (val) {
-        localStorage.setItem('cultify_user_name', name);
-        localStorage.setItem('cultify_user_role', role);
-    } else {
-        localStorage.removeItem('cultify_user_name');
-        localStorage.removeItem('cultify_user_role');
-    }
-}
-
 // Header login/logout toggle
 const headerLoggedIn = document.getElementById('header-logged-in');
 const headerLoggedOut = document.getElementById('header-logged-out');
@@ -34,22 +33,17 @@ if (headerLoggedIn && headerLoggedOut) {
     if (isLoggedIn()) { 
         headerLoggedIn.style.display = ''; 
         headerLoggedOut.style.display = 'none'; 
-        // Update name in header
         const nameSpan = headerLoggedIn.querySelector('.username');
         if (nameSpan) nameSpan.textContent = localStorage.getItem('cultify_user_name') || 'User';
-        
-        // Hide Admin link if not admin
-        const adminLink = headerLoggedIn.querySelector('a[href="admin.html"]')?.parentElement;
-        if (adminLink) {
-            adminLink.style.display = localStorage.getItem('cultify_user_role') === 'admin' ? '' : 'none';
-        }
+        const adminItem = headerLoggedIn.querySelector('#admin-nav-item');
+        if (adminItem) adminItem.style.display = localStorage.getItem('cultify_user_role') === 'admin' ? 'block' : 'none';
     }
     else { headerLoggedIn.style.display = 'none'; headerLoggedOut.style.display = ''; }
 }
 const logoutBtn = document.getElementById('logout-btn');
 if (logoutBtn) {
     logoutBtn.addEventListener('click', function(e) {
-        e.preventDefault(); setLoggedIn(false); window.location.href = 'index.html';
+        e.preventDefault(); setLoggedIn(false); window.location.href = toRoot + 'index.html';
     });
 }
 
@@ -177,7 +171,7 @@ if (sliderWrapper && featuredGrid) {
                         ${item.tags.map(t => `<span class="tag">${t}</span>`).join('')}
                     </div>
                     <div class="mt-4">
-                        <a href="detail.html?id=${item.id}" class="btn btn-primary px-4 py-2" style="background: var(--accent); border: none; font-weight: 600;">View Details</a>
+                        <a href="${toPages}detail.html?id=${item.id}" class="btn btn-primary px-4 py-2" style="background: var(--accent); border: none; font-weight: 600;">View Details</a>
                         <button onclick="globalAddToList('${item.id}', this)" class="btn btn-outline-light ms-3 px-4 py-2" style="border-radius: 8px;">+ Add to List</button>
                     </div>
                 </div>
@@ -291,7 +285,7 @@ window.toggleCard = function(element, id) {
                 </div>
                 <div class="expanded-actions" style="display:flex; gap:12px; margin-top:16px;">
                     ${btnHtml}
-                    <a href="detail.html?id=${id}" class="card-action-btn card-action-details">Details</a>
+                    <a href="${toPages}detail.html?id=${id}" class="card-action-btn card-action-details">Details</a>
                 </div>
             </div>
         `;
@@ -310,7 +304,7 @@ window.toggleMyList = function(event, id, btn) {
     
     if (!isLoggedIn()) {
         alert('Please log in to add items to your list!');
-        window.location.href = 'login.html';
+        window.location.href = toPages + 'login.html';
         return;
     }
 
@@ -398,7 +392,7 @@ if (addListBtn) {
 const commentSendBtn = document.querySelector('.comment-send-btn');
 if (commentSendBtn) {
     commentSendBtn.addEventListener('click', function() {
-        if (!isLoggedIn()) { window.location.href = 'login.html'; return; }
+        if (!isLoggedIn()) { window.location.href = toPages + 'login.html'; return; }
         const input = document.querySelector('.comment-input-wrapper input');
         if (input && input.value.trim()) {
             const commentList = document.querySelector('.content-card:last-child');
@@ -440,7 +434,7 @@ if (mylistGrid) {
         mylistGrid.innerHTML = list.map(id => {
             const item = contentDB[id];
             if (!item) return '';
-            return `<div class="mylist-card" data-id="${id}"><button class="mylist-remove-btn" onclick="removeFromList(event, '${id}')"><i class="fa-solid fa-xmark"></i></button><a href="detail.html?id=${id}" class="text-decoration-none"><img src="${item.img}" alt="${item.title}"><div class="mylist-card-body"><div class="mylist-card-title">${item.title}</div><div class="mylist-card-meta">${item.tags[0]} • ${item.creator} • ${item.year}</div></div></a></div>`;
+            return `<div class="mylist-card" data-id="${id}"><button class="mylist-remove-btn" onclick="removeFromList(event, '${id}')"><i class="fa-solid fa-xmark"></i></button><a href="${toPages}detail.html?id=${id}" class="text-decoration-none"><img src="${item.img}" alt="${item.title}"><div class="mylist-card-body"><div class="mylist-card-title">${item.title}</div><div class="mylist-card-meta">${item.tags[0]} • ${item.creator} • ${item.year}</div></div></a></div>`;
         }).join('');
     }
 }
@@ -464,11 +458,11 @@ if (loginForm) {
         if (email === 'admin@cult.com' && pass === 'admin123') {
             setLoggedIn(true, 'Elif Çiçek', 'admin');
             alert('Login successful! Welcome back, Elif.');
-            window.location.href = 'index.html';
+            window.location.href = toRoot + 'index.html';
         } else if (email === 'user@cult.com' && pass === 'user123') {
             setLoggedIn(true, 'Bayram Kartal', 'user');
             alert('Login successful! Welcome, Bayram.');
-            window.location.href = 'index.html';
+            window.location.href = toRoot + 'index.html';
         } else {
             alert('Invalid credentials! Please check your email and password.');
         }
