@@ -9,7 +9,6 @@ const toRoot = isRootPage ? '' : '../';
 
 // --- AUTH SYSTEM ---
 function isLoggedIn() { return localStorage.getItem('cultify_logged_in') === 'true'; }
-
 function setLoggedIn(val, name = '', role = '') { 
     localStorage.setItem('cultify_logged_in', val ? 'true' : 'false'); 
     if (val) {
@@ -19,9 +18,7 @@ function setLoggedIn(val, name = '', role = '') {
         localStorage.removeItem('cultify_user_name');
         localStorage.removeItem('cultify_user_role');
     }
-    updateAuthUI();
 }
-
 function showLoginModal() {
     const m = document.getElementById('login-modal');
     if (m) m.classList.add('active');
@@ -33,35 +30,20 @@ function closeLoginModal() {
 window.closeLoginModal = closeLoginModal;
 window.showLoginModal = showLoginModal;
 
-// Global Auth UI Update Function
-function updateAuthUI() {
-    const headerLoggedIn = document.getElementById('header-logged-in');
-    const headerLoggedOut = document.getElementById('header-logged-out');
-    
-    if (headerLoggedIn && headerLoggedOut) {
-        if (isLoggedIn()) { 
-            headerLoggedIn.style.display = ''; 
-            headerLoggedOut.style.display = 'none'; 
-            const nameSpan = headerLoggedIn.querySelector('.username');
-            if (nameSpan) nameSpan.textContent = localStorage.getItem('cultify_user_name') || 'User';
-            
-            const adminItem = headerLoggedIn.querySelector('#admin-nav-item');
-            if (adminItem) {
-                const role = localStorage.getItem('cultify_user_role');
-                adminItem.style.display = (role === 'admin') ? 'block' : 'none';
-            }
-        }
-        else { 
-            headerLoggedIn.style.display = 'none'; 
-            headerLoggedOut.style.display = ''; 
-        }
+// Header login/logout toggle
+const headerLoggedIn = document.getElementById('header-logged-in');
+const headerLoggedOut = document.getElementById('header-logged-out');
+if (headerLoggedIn && headerLoggedOut) {
+    if (isLoggedIn()) { 
+        headerLoggedIn.style.display = ''; 
+        headerLoggedOut.style.display = 'none'; 
+        const nameSpan = headerLoggedIn.querySelector('.username');
+        if (nameSpan) nameSpan.textContent = localStorage.getItem('cultify_user_name') || 'User';
+        const adminItem = headerLoggedIn.querySelector('#admin-nav-item');
+        if (adminItem) adminItem.style.display = localStorage.getItem('cultify_user_role') === 'admin' ? 'block' : 'none';
     }
+    else { headerLoggedIn.style.display = 'none'; headerLoggedOut.style.display = ''; }
 }
-window.updateAuthUI = updateAuthUI;
-
-// Initial check when DOM is ready
-document.addEventListener('DOMContentLoaded', updateAuthUI);
-
 const logoutBtn = document.getElementById('logout-btn');
 if (logoutBtn) {
     logoutBtn.addEventListener('click', function(e) {

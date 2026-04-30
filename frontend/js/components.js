@@ -63,10 +63,6 @@ const AppFooterHTML = `
 class AppHeader extends HTMLElement {
     connectedCallback() {
         this.innerHTML = AppHeaderHTML;
-        // Check auth status after header is in DOM
-        if (typeof updateAuthUI === 'function') {
-            updateAuthUI();
-        }
         
         // Re-run nav active state logic for the newly created nav links
         const currentPage = window.location.pathname.split('/').pop();
