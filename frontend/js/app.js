@@ -2,22 +2,25 @@
 // CULTIFY — APP.JS
 // ============================================
 
-// Determine if we are in the root or in /pages/
-const isRootPage = !window.location.pathname.includes('/pages/');
-const toPages = isRootPage ? 'pages/' : '';
-const toRoot = isRootPage ? '' : '../';
+// Determine paths based on location
+const toPages = '';
+const toRoot = '';
 
 // --- AUTH SYSTEM ---
-function isLoggedIn() { return localStorage.getItem('cultify_logged_in') === 'true'; }
-function setLoggedIn(val, name = '', role = '') { 
-    localStorage.setItem('cultify_logged_in', val ? 'true' : 'false'); 
-    if (val) {
-        localStorage.setItem('cultify_user_name', name);
-        localStorage.setItem('cultify_user_role', role);
-    } else {
-        localStorage.removeItem('cultify_user_name');
-        localStorage.removeItem('cultify_user_role');
-    }
+function isLoggedIn() { return localStorage.getItem('cultify_logged_in') === 'true' && !!getCurrentUserId(); }
+function loginUser(user) {
+    localStorage.setItem('cultify_logged_in', 'true');
+    localStorage.setItem('cultify_user_name', `${user.firstName} ${user.lastName}`);
+    localStorage.setItem('cultify_user_role', user.role);
+    localStorage.setItem('cultify_user_avatar', user.avatar);
+    setCurrentUser(user.id);
+}
+function logoutUser() {
+    localStorage.setItem('cultify_logged_in', 'false');
+    localStorage.removeItem('cultify_user_name');
+    localStorage.removeItem('cultify_user_role');
+    localStorage.removeItem('cultify_user_avatar');
+    clearCurrentUser();
 }
 function showLoginModal() {
     const m = document.getElementById('login-modal');
@@ -34,137 +37,177 @@ window.showLoginModal = showLoginModal;
 const headerLoggedIn = document.getElementById('header-logged-in');
 const headerLoggedOut = document.getElementById('header-logged-out');
 if (headerLoggedIn && headerLoggedOut) {
-    if (isLoggedIn()) { 
-        headerLoggedIn.style.display = ''; 
-        headerLoggedOut.style.display = 'none'; 
+    const navMyListLink = document.getElementById('nav-mylist-link');
+    if (isLoggedIn()) {
+        headerLoggedIn.style.display = '';
+        headerLoggedOut.style.display = 'none';
+        if (navMyListLink) navMyListLink.style.display = '';
+
+        const currentUser = getCurrentUser();
         const nameSpan = headerLoggedIn.querySelector('.username');
-        if (nameSpan) nameSpan.textContent = localStorage.getItem('cultify_user_name') || 'User';
+        if (nameSpan && currentUser) nameSpan.textContent = `${currentUser.firstName} ${currentUser.lastName}`;
+
+        const userIcon = headerLoggedIn.querySelector('i.fa-user');
+        if (userIcon && currentUser) {
+            userIcon.className = currentUser.avatar;
+        }
+
         const adminItem = headerLoggedIn.querySelector('#admin-nav-item');
-        if (adminItem) adminItem.style.display = localStorage.getItem('cultify_user_role') === 'admin' ? 'block' : 'none';
+        if (adminItem && currentUser) adminItem.style.display = currentUser.role === 'admin' ? 'block' : 'none';
     }
-    else { headerLoggedIn.style.display = 'none'; headerLoggedOut.style.display = ''; }
+    else {
+        headerLoggedIn.style.display = 'none';
+        headerLoggedOut.style.display = '';
+        if (navMyListLink) navMyListLink.style.display = 'none';
+    }
 }
 const logoutBtn = document.getElementById('logout-btn');
 if (logoutBtn) {
-    logoutBtn.addEventListener('click', function(e) {
-        e.preventDefault(); setLoggedIn(false); window.location.href = toRoot + 'index.html';
+    logoutBtn.addEventListener('click', function (e) {
+        e.preventDefault(); logoutUser(); window.location.href = toRoot + 'index.html';
     });
 }
 
+// Global listener to prevent unauthenticated users from viewing profiles
+document.addEventListener('click', function (e) {
+    const link = e.target.closest('a');
+    if (link && link.href && link.href.includes('profile.html')) {
+        if (!isLoggedIn()) {
+            e.preventDefault();
+            window.location.href = 'login.html';
+        }
+    }
+});
+
+// Global Rating Helper
+function getCardRatingHtml(itemId, title) {
+    let rating = 0;
+    if (typeof getItemAverageRating === 'function') {
+        const r = parseFloat(getItemAverageRating(itemId));
+        if (r > 0) rating = r;
+    }
+    if (rating === 0) {
+        return `<div class="card-rating text-secondary fw-bold">N/A</div>`;
+    }
+    return `<div class="card-rating"><i class="fa-solid fa-star"></i> ${rating.toFixed(1)}</div>`;
+}
+
 // --- CONTENT DATABASE ---
-const contentDB = {
-    // --- SERIES ---
-    'breaking-bad': { title: 'Breaking Bad', img: 'https://placehold.co/600x900/131b2c/6366f1?text=Breaking+Bad', tags: ['Series', 'Crime', 'Drama'], year: '2008', length: '5 Seasons', creator: 'Vince Gilligan', age: '+18', desc: 'A high school chemistry teacher turns to manufacturing methamphetamine.' },
-    'game-of-thrones': { title: 'Game of Thrones', img: 'https://placehold.co/600x900/131b2c/a855f7?text=Game+of+Thrones', tags: ['Series', 'Fantasy', 'Drama'], year: '2011', length: '8 Seasons', creator: 'David Benioff', age: '+18', desc: 'Nine noble families fight for control over the lands of Westeros.' },
-    'dark': { title: 'Dark', img: 'https://placehold.co/600x900/131b2c/3b82f6?text=Dark', tags: ['Series', 'Sci-Fi', 'Mystery'], year: '2017', length: '3 Seasons', creator: 'Baran bo Odar', age: '+16', desc: 'A family saga with a supernatural twist set in a German town.' },
-    'lost': { title: 'Lost', img: 'https://placehold.co/600x900/131b2c/10b981?text=Lost', tags: ['Series', 'Adventure', 'Mystery'], year: '2004', length: '6 Seasons', creator: 'J.J. Abrams', age: '+14', desc: 'Survivors of a plane crash are forced to work together on a deserted island.' },
-    'vikings': { title: 'Vikings', img: 'https://placehold.co/600x900/131b2c/ef4444?text=Vikings', tags: ['Series', 'Action', 'History'], year: '2013', length: '6 Seasons', creator: 'Michael Hirst', age: '+18', desc: 'The brutal and mysterious world of Ragnar Lothbrok.' },
-    'sherlock': { title: 'Sherlock', img: 'https://placehold.co/600x900/131b2c/f59e0b?text=Sherlock', tags: ['Series', 'Crime', 'Mystery'], year: '2010', length: '4 Seasons', creator: 'Steven Moffat', age: '+14', desc: 'A modern update of the famous sleuth in 21st century London.' },
-    'last-of-us-series': { title: 'The Last of Us', img: 'https://placehold.co/600x900/131b2c/6366f1?text=The+Last+of+Us', tags: ['Series', 'Drama', 'Action'], year: '2023', length: '1 Season', creator: 'Neil Druckmann', age: '+18', desc: 'A hardened survivor takes charge of a 14-year-old girl after a pandemic.' },
-    'mr-robot': { title: 'Mr. Robot', img: 'https://placehold.co/600x900/131b2c/3b82f6?text=Mr.+Robot', tags: ['Series', 'Drama', 'Thriller'], year: '2015', length: '4 Seasons', creator: 'Sam Esmail', age: '+16', desc: 'A young cyber-security engineer becomes a key figure in global dominance.' },
-    'chernobyl': { title: 'Chernobyl', img: 'https://placehold.co/600x900/131b2c/10b981?text=Chernobyl', tags: ['Series', 'Drama', 'History'], year: '2019', length: '1 Season', creator: 'Craig Mazin', age: '+16', desc: 'The story of the 1986 nuclear accident in the USSR.' },
-    'peaky-blinders': { title: 'Peaky Blinders', img: 'https://placehold.co/600x900/131b2c/ef4444?text=Peaky+Blinders', tags: ['Series', 'Crime', 'Drama'], year: '2013', length: '6 Seasons', creator: 'Steven Knight', age: '+18', desc: 'A gangster family epic set in 1900s England.' },
+let contentDB = getContentDB();
 
-    // --- MOVIES ---
-    'shawshank': { title: 'The Shawshank Redemption', img: 'https://placehold.co/600x900/131b2c/f59e0b?text=Shawshank', tags: ['Movie', 'Drama', 'Classic'], year: '1994', length: '142 Min.', creator: 'Frank Darabont', age: '+16', desc: 'Two imprisoned men bond over a number of years.' },
-    'godfather': { title: 'The Godfather', img: 'https://placehold.co/600x900/131b2c/6366f1?text=Godfather', tags: ['Movie', 'Crime', 'Drama'], year: '1972', length: '175 Min.', creator: 'Francis Ford Coppola', age: '+18', desc: 'An aging patriarch transfers control to his son.' },
-    'dark-knight': { title: 'The Dark Knight', img: 'https://placehold.co/600x900/131b2c/a855f7?text=The+Dark+Knight', tags: ['Movie', 'Action', 'Crime'], year: '2008', length: '152 Min.', creator: 'Christopher Nolan', age: '+16', desc: 'Batman must accept one of the greatest psychological tests.' },
-    'pulp-fiction': { title: 'Pulp Fiction', img: 'https://placehold.co/600x900/131b2c/3b82f6?text=Pulp+Fiction', tags: ['Movie', 'Crime', 'Thriller'], year: '1994', length: '154 Min.', creator: 'Quentin Tarantino', age: '+18', desc: 'The lives of mob hitmen and a boxer intertwine.' },
-    'inception': { title: 'Inception', img: 'https://placehold.co/600x900/131b2c/10b981?text=Inception', tags: ['Movie', 'Sci-Fi', 'Action'], year: '2010', length: '148 Min.', creator: 'Christopher Nolan', age: '+13', desc: 'A thief steals secrets through dream-sharing technology.' },
-    'interstellar': { title: 'Interstellar', img: 'https://placehold.co/600x900/131b2c/ef4444?text=Interstellar', tags: ['Movie', 'Sci-Fi', 'Drama'], year: '2014', length: '169 Min.', creator: 'Christopher Nolan', age: '+13', desc: 'A team of explorers travel through a wormhole.' },
-    'dune-2': { title: 'Dune: Part Two', img: 'https://placehold.co/600x900/131b2c/f59e0b?text=Dune+2', tags: ['Movie', 'Sci-Fi', 'Adventure'], year: '2024', length: '166 Min.', creator: 'Denis Villeneuve', age: '+13', desc: 'Paul Atreides unites with the Fremen for revenge.' },
-    'oppenheimer': { title: 'Oppenheimer', img: 'https://placehold.co/600x900/131b2c/6366f1?text=Oppenheimer', tags: ['Movie', 'Drama', 'History'], year: '2023', length: '180 Min.', creator: 'Christopher Nolan', age: '+16', desc: 'The role of J. Robert Oppenheimer in the atomic bomb.' },
-
-    // --- BOOKS ---
-    '1984': { title: '1984', img: 'https://placehold.co/600x900/131b2c/a855f7?text=1984', tags: ['Book', 'Dystopia', 'Sci-Fi'], year: '1949', length: '328 Pages', creator: 'George Orwell', age: '+16', desc: 'Winston Smith rebels against a totalitarian society.' },
-    'harry-potter': { title: 'Harry Potter', img: 'https://placehold.co/600x900/131b2c/3b82f6?text=Harry+Potter', tags: ['Book', 'Fantasy', 'Adventure'], year: '1997', length: '309 Pages', creator: 'J.K. Rowling', age: '+10', desc: 'A young boy discovers he is a wizard.' },
-    'lotr-book': { title: 'The Lord of the Rings', img: 'https://placehold.co/600x900/131b2c/10b981?text=LOTR', tags: ['Book', 'Fantasy', 'Classic'], year: '1954', length: '1178 Pages', creator: 'J.R.R. Tolkien', age: '+12', desc: 'The epic saga of the war for the One Ring.' },
-    'alchemist': { title: 'The Alchemist', img: 'https://placehold.co/600x900/131b2c/ef4444?text=The+Alchemist', tags: ['Book', 'Fiction', 'Philosophy'], year: '1988', length: '163 Pages', creator: 'Paulo Coelho', age: '+12', desc: 'A shepherd boy travels to search for treasure.' },
-
-    // --- GAMES ---
-    'witcher3': { title: 'The Witcher 3', img: 'https://placehold.co/600x900/131b2c/f59e0b?text=Witcher+3', tags: ['Game', 'RPG', 'Fantasy'], year: '2015', length: '100+ Hours', creator: 'CD Projekt RED', age: '+18', desc: 'Become a professional monster slayer.' },
-    'elden-ring': { title: 'Elden Ring', img: 'https://placehold.co/600x900/131b2c/6366f1?text=Elden+Ring', tags: ['Game', 'Action RPG', 'Fantasy'], year: '2022', length: '100+ Hours', creator: 'FromSoftware', age: '+16', desc: 'Journey to become the Elden Lord.' },
-    'rdr2': { title: 'Red Dead Redemption 2', img: 'https://placehold.co/600x900/131b2c/a855f7?text=RDR2', tags: ['Game', 'Open World', 'Western'], year: '2018', length: '60+ Hours', creator: 'Rockstar Games', age: '+18', desc: 'Arthur Morgan and his gang on the run.' },
-    'baldurs-gate-3': { title: 'Baldur\'s Gate 3', img: 'https://placehold.co/600x900/131b2c/3b82f6?text=Baldurs+Gate+3', tags: ['Game', 'RPG', 'Adventure'], year: '2023', length: '100+ Hours', creator: 'Larian Studios', age: '+18', desc: 'Abducted, infected, lost. You are turning into a monster.' },
-    
-    // --- BATCH 2 ---
-    'lost': { title: 'Lost', img: 'https://www.themoviedb.org/t/p/w600_and_h900_bestv2/r9ca9pZ669S97zYn76S999iB2S7.jpg', tags: ['Series', 'Adventure', 'Drama'], year: '2004', length: '6 Seasons', creator: 'J.J. Abrams', age: '+14', desc: 'The survivors of a plane crash are forced to work together in order to survive on a seemingly deserted tropical island.' },
-    'vikings': { title: 'Vikings', img: 'https://www.themoviedb.org/t/p/w600_and_h900_bestv2/b5ra7SWSZpSnaC9ecT5C60RiS7U.jpg', tags: ['Series', 'Action', 'Drama'], year: '2013', length: '6 Seasons', creator: 'Michael Hirst', age: '+18', desc: 'Ragnar Lothbrok, a Viking warrior and farmer, yearns to explore and raid the distant shores across the ocean.' },
-    'last-kingdom': { title: 'The Last Kingdom', img: 'https://www.themoviedb.org/t/p/w600_and_h900_bestv2/8eJf0hCym6Yny21YnsCk2bsu57T.jpg', tags: ['Series', 'Action', 'History'], year: '2015', length: '5 Seasons', creator: 'Stephen Butchard', age: '+18', desc: 'As Alfred the Great defends his kingdom from Norse invaders, Uhtred—born a Saxon but raised by Vikings—seeks to claim his ancestral birthright.' },
-    'walking-dead': { title: 'The Walking Dead', img: 'https://www.themoviedb.org/t/p/w600_and_h900_bestv2/xf9m7sS4SOUmBicU7nBpkUfjQoW.jpg', tags: ['Series', 'Horror', 'Drama'], year: '2010', length: '11 Seasons', creator: 'Frank Darabont', age: '+18', desc: 'Sheriff Deputy Rick Grimes leads a group of survivors in a world overrun by the walking dead.' },
-    'house-md': { title: 'House M.D.', img: 'https://www.themoviedb.org/t/p/w600_and_h900_bestv2/3698v097Y9pZ9YpUnS987pt0Uv8.jpg', tags: ['Series', 'Drama', 'Mystery'], year: '2004', length: '8 Seasons', creator: 'David Shore', age: '+14', desc: 'An antisocial maverick doctor who specializes in diagnostic medicine does whatever it takes to solve puzzling cases.' },
-    'lucifer': { title: 'Lucifer', img: 'https://www.themoviedb.org/t/p/w600_and_h900_bestv2/ekZobS8isE6SqcNBbq3Pqj7Gv6z.jpg', tags: ['Series', 'Crime', 'Fantasy'], year: '2016', length: '6 Seasons', creator: 'Tom Kapinos', age: '+16', desc: 'Lucifer Morningstar has decided he\'s had enough of being the dutiful servant in Hell and decides to spend some time on Earth to better understand humanity.' },
-    'mentalist': { title: 'The Mentalist', img: 'https://www.themoviedb.org/t/p/w600_and_h900_bestv2/ac3oYyS9XpS9f3uI1pYvS6Osh7S.jpg', tags: ['Series', 'Crime', 'Drama'], year: '2008', length: '7 Seasons', creator: 'Bruno Heller', age: '+14', desc: 'A famous "psychic" outs himself as a fake and starts working as a consultant for the California Bureau of Investigation.' },
-    'dexter': { title: 'Dexter', img: 'https://www.themoviedb.org/t/p/w600_and_h900_bestv2/58H3898rclj639SntY9mZ0W917S.jpg', tags: ['Series', 'Crime', 'Thriller'], year: '2006', length: '8 Seasons', creator: 'James Manos Jr.', age: '+18', desc: 'By day, mild-mannered Dexter is a blood-spatter analyst for the Miami police. But at night, he is a serial killer who only targets other murderers.' },
-    'gentlemen': { title: 'The Gentlemen', img: 'https://www.themoviedb.org/t/p/w600_and_h900_bestv2/v8Y9mO5Y6uS9YpSnt9mY9YpY9Yp.jpg', tags: ['Series', 'Crime', 'Comedy'], year: '2024', length: '1 Season', creator: 'Guy Ritchie', age: '+18', desc: 'When aristocratic Eddie inherits the family estate, he discovers that it\'s home to an enormous weed empire, and its proprietors aren\'t going anywhere.' },
-    'wednesday': { title: 'Wednesday', img: 'https://www.themoviedb.org/t/p/w600_and_h900_bestv2/998id8Y9pZ9YpSnt9mY9YpY9Yp.jpg', tags: ['Series', 'Fantasy', 'Mystery'], year: '2022', length: '1 Season', creator: 'Alfred Gough', age: '+13', desc: 'Follows Wednesday Addams\' years as a student at Nevermore Academy, as she attempts to master her emerging psychic ability.' },
-    'schindlers-list': { title: 'Schindler\'s List', img: 'https://www.themoviedb.org/t/p/w600_and_h900_bestv2/sF1U4EU7S6fS9Snt9mY9YpY9Yp.jpg', tags: ['Movie', 'Drama', 'History'], year: '1993', length: '195 Min.', creator: 'Steven Spielberg', age: '+16', desc: 'In German-occupied Poland during World War II, industrialist Oskar Schindler gradually becomes concerned for his Jewish workforce after witnessing their persecution by the Nazis.' },
-    'fight-club': { title: 'Fight Club', img: 'https://www.themoviedb.org/t/p/w600_and_h900_bestv2/pB8BM7SWSZpSnaC9ecT5C60RiS7U.jpg', tags: ['Movie', 'Drama', 'Thriller'], year: '1999', length: '139 Min.', creator: 'David Fincher', age: '+18', desc: 'An insomniac office worker and a devil-may-care soap maker form an underground fight club that evolves into much more.' },
-    'forrest-gump': { title: 'Forrest Gump', img: 'https://www.themoviedb.org/t/p/w600_and_h900_bestv2/arw2vcBveS5SnaC9ecT5C60RiS7U.jpg', tags: ['Movie', 'Drama', 'Romance'], year: '1994', length: '142 Min.', creator: 'Robert Zemeckis', age: '+13', desc: 'The presidencies of Kennedy and Johnson, the Vietnam War, the Watergate scandal and other historical events unfold from the perspective of an Alabama man with an IQ of 75.' },
-    'parasite': { title: 'Parasite', img: 'https://www.themoviedb.org/t/p/w600_and_h900_bestv2/7IiTTjSWSZpSnaC9ecT5C60RiS7U.jpg', tags: ['Movie', 'Thriller', 'Drama'], year: '2019', length: '132 Min.', creator: 'Bong Joon-ho', age: '+16', desc: 'Greed and class discrimination threaten the newly formed symbiotic relationship between the wealthy Park family and the destitute Kim clan.' },
-    'gladiator': { title: 'Gladiator', img: 'https://www.themoviedb.org/t/p/w600_and_h900_bestv2/ty8TjSWSZpSnaC9ecT5C60RiS7U.jpg', tags: ['Movie', 'Action', 'Drama'], year: '2000', length: '155 Min.', creator: 'Ridley Scott', age: '+16', desc: 'A former Roman General sets out to exact vengeance against the corrupt emperor who murdered his family and sent him into slavery.' },
-    'crime-punishment': { title: 'Crime and Punishment', img: 'https://covers.openlibrary.org/b/id/12668586-L.jpg', tags: ['Book', 'Classic', 'Psychological'], year: '1866', length: '671 Pages', creator: 'Fyodor Dostoevsky', age: '+16', desc: 'Raskolnikov, a destitute and desperate former student, wanders through the slums of St Petersburg and commits a random murder without remorse or regret.' },
-    'little-prince': { title: 'The Little Prince', img: 'https://covers.openlibrary.org/b/id/12668587-L.jpg', tags: ['Book', 'Fantasy', 'Classic'], year: '1943', length: '96 Pages', creator: 'Antoine de Saint-Exupéry', age: '+8', desc: 'A pilot stranded in the desert awakes one morning to see, standing before him, the most extraordinary little fellow.' },
-    'animal-farm': { title: 'Animal Farm', img: 'https://covers.openlibrary.org/b/id/12668588-L.jpg', tags: ['Book', 'Satire', 'Classic'], year: '1945', length: '112 Pages', creator: 'George Orwell', age: '+12', desc: 'A farm is taken over by its overworked, mistreated animals. With flaming idealism and stirring slogans, they set out to create a paradise of progress, justice, and equality.' },
-    'max-payne-3': { title: 'Max Payne 3', img: 'https://images.igdb.com/igdb/image/upload/t_cover_big/co1v6x.jpg', tags: ['Game', 'Action', 'Shooter'], year: '2012', length: '12 Hours', creator: 'Rockstar Games', age: '+18', desc: 'Max Payne, a man haunted by the traumas of his past, begins a new life working private security protecting a wealthy industrialist and his family in Sao Paulo, Brazil.' },
-    'minecraft': { title: 'Minecraft', img: 'https://images.igdb.com/igdb/image/upload/t_cover_big/co49x5.jpg', tags: ['Game', 'Sandbox', 'Adventure'], year: '2011', length: 'Infinite', creator: 'Mojang Studios', age: '+7', desc: 'Explore infinite worlds and build everything from the simplest of homes to the grandest of castles.' },
-    'mafia-2': { title: 'Mafia II', img: 'https://images.igdb.com/igdb/image/upload/t_cover_big/co20m5.jpg', tags: ['Game', 'Action', 'Crime'], year: '2010', length: '15 Hours', creator: '2K Czech', age: '+18', desc: 'Vito Scaletta has started to make a name for himself on the streets of Empire Bay as someone who can be trusted to get a job done.' },
-    'portal-2': { title: 'Portal 2', img: 'https://images.igdb.com/igdb/image/upload/t_cover_big/co1m64.jpg', tags: ['Game', 'Puzzle', 'Sci-Fi'], year: '2011', length: '10 Hours', creator: 'Valve', age: '+10', desc: 'Portal 2 draws from the award-winning formula of innovative gameplay, story, and music that earned the original Portal over 70 industry accolades.' },
-
-    // --- BATCH 3 ---
-    'casa-de-papel': { title: 'Money Heist', img: 'https://www.themoviedb.org/t/p/w600_and_h900_bestv2/reEMJA1uzpG3Snt9mY9YpY9Yp.jpg', tags: ['Series', 'Crime', 'Thriller'], year: '2017', length: '5 Seasons', creator: 'Álex Pina', age: '+16', desc: 'An unusual group of robbers attempt to carry out the most perfect robbery in Spanish history - stealing 2.4 billion euros from the Royal Mint of Spain.' },
-    '3-body-problem': { title: '3 Body Problem', img: 'https://www.themoviedb.org/t/p/w600_and_h900_bestv2/8eJf0hCym6Yny21YnsCk2bsu57T.jpg', tags: ['Series', 'Sci-Fi', 'Mystery'], year: '2024', length: '1 Season', creator: 'David Benioff, D.B. Weiss', age: '+16', desc: 'A fateful decision made in 1960s China echoes across space and time to a group of scientists in the present, forcing them to face humanity\'s greatest threat.' },
-    'ragnarok-series': { title: 'Ragnarok', img: 'https://www.themoviedb.org/t/p/w600_and_h900_bestv2/998id8Y9pZ9YpSnt9mY9YpY9Yp.jpg', tags: ['Series', 'Fantasy', 'Drama'], year: '2020', length: '3 Seasons', creator: 'Adam Price', age: '+16', desc: 'A small Norwegian town experiencing warm winters and violent downpours seems to be headed for another Ragnarok—unless someone intervenes in time.' },
-    'after-life': { title: 'After Life', img: 'https://www.themoviedb.org/t/p/w600_and_h900_bestv2/mS098id8Y9pZ9YpSnt9mY9YpY9Yp.jpg', tags: ['Series', 'Comedy', 'Drama'], year: '2019', length: '3 Seasons', creator: 'Ricky Gervais', age: '+16', desc: 'Tony had a perfect life. But after his wife Lisa dies, Tony changes. After contemplating taking his own life, he decides instead to live long enough to punish the world by saying and doing whatever he likes.' },
-    'titanic': { title: 'Titanic', img: 'https://www.themoviedb.org/t/p/w600_and_h900_bestv2/998id8Y9pZ9YpSnt9mY9YpY9Yp.jpg', tags: ['Movie', 'Romance', 'Drama'], year: '1997', length: '194 Min.', creator: 'James Cameron', age: '+13', desc: 'A seventeen-year-old aristocrat falls in love with a kind but poor artist aboard the luxurious, ill-fated R.M.S. Titanic.' },
-    'avengers-endgame': { title: 'Avengers: Endgame', img: 'https://www.themoviedb.org/t/p/w600_and_h900_bestv2/or06qbC9vAgJa7CztY9o6u6Y2.jpg', tags: ['Movie', 'Action', 'Sci-Fi'], year: '2019', length: '181 Min.', creator: 'Anthony Russo, Joe Russo', age: '+12', desc: 'After the devastating events of Infinity War, the universe is in ruins. With the help of remaining allies, the Avengers assemble once more.' },
-    'avatar-2': { title: 'Avatar: The Way of Water', img: 'https://www.themoviedb.org/t/p/w600_and_h900_bestv2/t6HI7SWSZpSnaC9ecT5C60RiS7U.jpg', tags: ['Movie', 'Sci-Fi', 'Action'], year: '2022', length: '192 Min.', creator: 'James Cameron', age: '+12', desc: 'Jake Sully lives with his newfound family formed on the extrasolar moon Pandora. Once a familiar threat returns to finish what was previously started, Jake must work with Neytiri and the army of the Na\'vi race to protect their home.' },
-    'spider-verse': { title: 'Spider-Man: Across the Spider-Verse', img: 'https://www.themoviedb.org/t/p/w600_and_h900_bestv2/8Gxv3mYgiFApXfGrsyotz2pC3vH.jpg', tags: ['Movie', 'Animation', 'Action'], year: '2023', length: '140 Min.', creator: 'Joaquim Dos Santos', age: '+10', desc: 'Miles Morales catapults across the Multiverse, where he encounters a team of Spider-People charged with protecting its very existence.' },
-    'martian': { title: 'The Martian', img: 'https://www.themoviedb.org/t/p/w600_and_h900_bestv2/998id8Y9pZ9YpSnt9mY9YpY9Yp.jpg', tags: ['Movie', 'Sci-Fi', 'Adventure'], year: '2015', length: '144 Min.', creator: 'Ridley Scott', age: '+13', desc: 'An astronaut becomes stranded on Mars after his team assume him dead, and must rely on his ingenuity to find a way to signal to Earth that he is alive.' },
-    'goodfellas': { title: 'Goodfellas', img: 'https://www.themoviedb.org/t/p/w600_and_h900_bestv2/998id8Y9pZ9YpSnt9mY9YpY9Yp.jpg', tags: ['Movie', 'Crime', 'Drama'], year: '1990', length: '145 Min.', creator: 'Martin Scorsese', age: '+18', desc: 'The story of Henry Hill and his life in the mob, covering his relationship with his wife Karen Hill and his mob partners Jimmy Conway and Tommy DeVito in the Italian-American crime syndicate.' },
-    'tenet': { title: 'Tenet', img: 'https://www.themoviedb.org/t/p/w600_and_h900_bestv2/k68nPLbT6mY9YpSnt9mY9YpY9Yp.jpg', tags: ['Movie', 'Action', 'Sci-Fi'], year: '2020', length: '150 Min.', creator: 'Christopher Nolan', age: '+13', desc: 'Armed with only one word, Tenet, and fighting for the survival of the entire world, a Protagonist journeys through a twilight world of international espionage on a mission that will unfold in something beyond real time.' },
-    'les-miserables': { title: 'Les Misérables', img: 'https://covers.openlibrary.org/b/id/12668589-L.jpg', tags: ['Book', 'Classic', 'Drama'], year: '1862', length: '1462 Pages', creator: 'Victor Hugo', age: '+14', desc: 'In nineteenth-century France, Jean Valjean, who for decades has been hunted by the ruthless policeman Javert after breaking parole, agrees to care for a factory worker\'s daughter.' },
-    'mockingbird': { title: 'To Kill a Mockingbird', img: 'https://covers.openlibrary.org/b/id/12668590-L.jpg', tags: ['Book', 'Classic', 'Drama'], year: '1960', length: '281 Pages', creator: 'Harper Lee', age: '+12', desc: 'The story of young Scout Finch and her father Atticus, a lawyer who defends a black man charged with the rape of a white girl.' },
-    'dorian-gray': { title: 'The Picture of Dorian Gray', img: 'https://covers.openlibrary.org/b/id/12668591-L.jpg', tags: ['Book', 'Classic', 'Gothic'], year: '1890', length: '254 Pages', creator: 'Oscar Wilde', age: '+16', desc: 'A corruptible young man has his soul painted into a portrait, which ages and decays while he remains forever young.' },
-    'alice-wonderland': { title: 'Alice in Wonderland', img: 'https://covers.openlibrary.org/b/id/12668592-L.jpg', tags: ['Book', 'Fantasy', 'Classic'], year: '1865', length: '200 Pages', creator: 'Lewis Carroll', age: '+8', desc: 'A young girl named Alice falls through a rabbit hole into a fantasy world populated by peculiar, anthropomorphic creatures.' },
-    'metamorphosis': { title: 'The Metamorphosis', img: 'https://covers.openlibrary.org/b/id/12668593-L.jpg', tags: ['Book', 'Classic', 'Absurdist'], year: '1915', length: '100 Pages', creator: 'Franz Kafka', age: '+14', desc: 'The story of salesman Gregor Samsa, who wakes one morning to find himself inexplicably transformed into a huge insect.' },
-    'gta-sa': { title: 'Grand Theft Auto: San Andreas', img: 'https://images.igdb.com/igdb/image/upload/t_cover_big/co1vqx.jpg', tags: ['Game', 'Action', 'Open World'], year: '2004', length: '30+ Hours', creator: 'Rockstar North', age: '+18', desc: 'After his mother\'s murder, Carl Johnson is coerced by corrupt police into a journey that takes him across the entire state of San Andreas to save his family and take control of the streets.' },
-    'ets2': { title: 'Euro Truck Simulator 2', img: 'https://images.igdb.com/igdb/image/upload/t_cover_big/co2lbd.jpg', tags: ['Game', 'Simulation', 'Driving'], year: '2012', length: 'Infinite', creator: 'SCS Software', age: '+3', desc: 'Travel across Europe as king of the road, a trucker who delivers important cargo across impressive distances!' },
-    'ac-black-flag': { title: 'Assassin\'s Creed IV Black Flag', img: 'https://images.igdb.com/igdb/image/upload/t_cover_big/co1v5x.jpg', tags: ['Game', 'Action', 'Adventure'], year: '2013', length: '20+ Hours', creator: 'Ubisoft Montreal', age: '+18', desc: 'The year is 1715. Pirates rule the Caribbean and have established their own lawless Republic where corruption, greediness and cruelty are commonplace.' },
-    'cs2': { title: 'Counter-Strike 2', img: 'https://images.igdb.com/igdb/image/upload/t_cover_big/co6cl9.jpg', tags: ['Game', 'Action', 'Shooter'], year: '2023', length: 'Infinite', creator: 'Valve', age: '+16', desc: 'For over two decades, Counter-Strike has offered an elite competitive experience, one shaped by the millions of players from across the globe.' },
-    'valorant': { title: 'Valorant', img: 'https://images.igdb.com/igdb/image/upload/t_cover_big/co2mdf.jpg', tags: ['Game', 'Action', 'Shooter'], year: '2020', length: 'Infinite', creator: 'Riot Games', age: '+16', desc: 'A 5v5 character-based tactical shooter where precise gunplay meets unique agent abilities.' },
-    'hades': { title: 'Hades', img: 'https://images.igdb.com/igdb/image/upload/t_cover_big/co1v76.jpg', tags: ['Game', 'Action', 'Indie'], year: '2020', length: '20+ Hours', creator: 'Supergiant Games', age: '+12', desc: 'Defy the god of the dead as you hack and slash out of the Underworld in this rogue-like dungeon crawler from the creators of Bastion and Transistor.' },
-
-    // --- BATCH 4 ---
-    'brave-new-world': { title: 'Brave New World', img: 'https://covers.openlibrary.org/b/id/12668594-L.jpg', tags: ['Book', 'Sci-Fi', 'Dystopia'], year: '1932', length: '311 Pages', creator: 'Aldous Huxley', age: '+16', desc: 'A futuristic society where citizens are environmentally engineered into a rigid intelligence-based social hierarchy.' },
-    'fahrenheit-451': { title: 'Fahrenheit 451', img: 'https://covers.openlibrary.org/b/id/12668595-L.jpg', tags: ['Book', 'Sci-Fi', 'Dystopia'], year: '1953', length: '158 Pages', creator: 'Ray Bradbury', age: '+14', desc: 'In a future American society where books are outlawed and "firemen" burn any that are found.' },
-    'dracula': { title: 'Dracula', img: 'https://covers.openlibrary.org/b/id/12668596-L.jpg', tags: ['Book', 'Horror', 'Classic'], year: '1897', length: '418 Pages', creator: 'Bram Stoker', age: '+16', desc: 'The story of Count Dracula\'s attempt to move from Transylvania to England so that he may find new blood and spread the undead curse.' },
-    'hobbit-book': { title: 'The Hobbit', img: 'https://covers.openlibrary.org/b/id/12668597-L.jpg', tags: ['Book', 'Fantasy', 'Adventure'], year: '1937', length: '310 Pages', creator: 'J.R.R. Tolkien', age: '+10', desc: 'Bilbo Baggins, a hobbit enjoying a quiet life, is swept into an epic quest by Gandalf the Wizard and thirteen dwarves.' },
-    'foundation-book': { title: 'Foundation', img: 'https://covers.openlibrary.org/b/id/12668598-L.jpg', tags: ['Book', 'Sci-Fi', 'Classic'], year: '1951', length: '255 Pages', creator: 'Isaac Asimov', age: '+14', desc: 'The first novel in the Foundation series, a saga about the fall and rebirth of a galactic empire.' },
-    'sapiens-book': { title: 'Sapiens: A Brief History of Humankind', img: 'https://covers.openlibrary.org/b/id/12668599-L.jpg', tags: ['Book', 'Non-Fiction', 'History'], year: '2011', length: '443 Pages', creator: 'Yuval Noah Harari', age: '+14', desc: 'Spanning the whole of human history, from the very first humans to walk the earth to the radical – and sometimes devious – breakthroughs of the Cognitive, Agricultural and Scientific Revolutions.' },
-    'doom-2016': { title: 'DOOM', img: 'https://images.igdb.com/igdb/image/upload/t_cover_big/co1v5v.jpg', tags: ['Game', 'Action', 'Shooter'], year: '2016', length: '12 Hours', creator: 'id Software', age: '+18', desc: 'Relentless demons, impossibly destructive guns, and fast, fluid movement provide the foundation for intense, first-person combat.' },
-    'dark-souls': { title: 'Dark Souls', img: 'https://images.igdb.com/igdb/image/upload/t_cover_big/co2lbd.jpg', tags: ['Game', 'RPG', 'Action'], year: '2011', length: '50+ Hours', creator: 'FromSoftware', age: '+16', desc: 'Prepare to Die. A new, dark fantasy world from the creators of Demon\'s Souls, set in a massive, seamless world.' },
-    'silent-hill-2': { title: 'Silent Hill 2', img: 'https://images.igdb.com/igdb/image/upload/t_cover_big/co2lbe.jpg', tags: ['Game', 'Horror', 'Mystery'], year: '2001', length: '10 Hours', creator: 'Konami', age: '+18', desc: 'James Sunderland\'s life is shattered when his young wife Mary dies. Three years later, a mysterious letter arrives from Mary, beckoning him to return to their "special place" in Silent Hill.' },
-    'disco-elysium': { title: 'Disco Elysium', img: 'https://images.igdb.com/igdb/image/upload/t_cover_big/co1v69.jpg', tags: ['Game', 'RPG', 'Story'], year: '2019', length: '30+ Hours', creator: 'ZA/UM', age: '+18', desc: 'A detective role-playing game with a unique skill system and a whole city block to carve your path through.' },
-    'fallout-nv': { title: 'Fallout: New Vegas', img: 'https://images.igdb.com/igdb/image/upload/t_cover_big/co2lbf.jpg', tags: ['Game', 'RPG', 'Action'], year: '2010', length: '40+ Hours', creator: 'Obsidian Entertainment', age: '+18', desc: 'Welcome to Vegas. New Vegas. It’s the kind of town where you dig your own grave prior to being shot in the head and left for dead… and that’s before things really get ugly.' },
-    'batman-arkham-city': { title: 'Batman: Arkham City', img: 'https://images.igdb.com/igdb/image/upload/t_cover_big/co2lbg.jpg', tags: ['Game', 'Action', 'Adventure'], year: '2011', length: '15+ Hours', creator: 'Rocksteady Studios', age: '+16', desc: 'Batman: Arkham City builds upon the intense, atmospheric foundation of Batman: Arkham Asylum, sending players soaring into the expansive Arkham City.' }
-};
+// Sort items by average rating (highest first, unrated last)
+function sortByRating(items) {
+    return items.sort((a, b) => {
+        const rA = parseFloat(getItemAverageRating(a.id)) || 0;
+        const rB = parseFloat(getItemAverageRating(b.id)) || 0;
+        return rB - rA;
+    });
+}
 
 // --- FEATURED SECTION (index.html) ---
 const sliderWrapper = document.getElementById('main-slider-wrapper');
-const featuredGrid = document.getElementById('featured-grid-container');
+const booksGrid = document.getElementById('books-grid');
+const gamesGrid = document.getElementById('games-grid');
+const moviesSeriesGrid = document.getElementById('movies-series-grid');
 
-if (sliderWrapper && featuredGrid) {
-    const keys = Object.keys(contentDB);
-    // Shuffle
-    for (let i = keys.length - 1; i > 0; i--) { 
-        const j = Math.floor(Math.random() * (i + 1)); 
-        [keys[i], keys[j]] = [keys[j], keys[i]]; 
+// Global Search Logic
+const searchInput = document.getElementById('global-search');
+if (searchInput) {
+    // Check if there is a search query in URL
+    const urlParamsSearch = new URLSearchParams(window.location.search);
+    const searchQuery = urlParamsSearch.get('search');
+    if (searchQuery) {
+        searchInput.value = searchQuery;
     }
-    const items = keys.map(k => ({ id: k, ...contentDB[k] }));
-    
-    // Top 5 items for the slider
-    const sliderItems = items.slice(0, 5);
+
+    searchInput.addEventListener('input', (e) => {
+        const query = e.target.value.trim();
+        // If not on index.html, redirect to index.html with search query
+        if (!booksGrid) {
+            if (query.length > 0) {
+                window.location.href = `index.html?search=${encodeURIComponent(query)}`;
+            }
+            return;
+        }
+
+        // If on index.html, perform search
+        const q = query.toLowerCase();
+        const items = Object.entries(contentDB).map(([id, data]) => ({ id, ...data }));
+        const sliderSection = document.querySelector('.split-hero-container');
+
+        const booksSection = booksGrid.closest('.category-section');
+        const gamesSection = gamesGrid.closest('.category-section');
+        const moviesSection = moviesSeriesGrid.closest('.category-section');
+        const moviesHeader = moviesSection.querySelector('.category-header');
+
+        if (q.length > 0) {
+            if (sliderSection) sliderSection.style.display = 'none';
+            if (booksSection) booksSection.style.display = 'none';
+            if (gamesSection) gamesSection.style.display = 'none';
+
+            if (moviesHeader) {
+                moviesHeader.querySelector('h3').innerHTML = `<i class="fa-solid fa-magnifying-glass me-2 text-accent"></i>Search Results for "${q}"`;
+                moviesHeader.querySelector('p').style.display = 'none';
+                moviesHeader.querySelector('a').style.display = 'none';
+            }
+            const filtered = sortByRating(items.filter(item =>
+                item.title.toLowerCase().includes(q) ||
+                item.creator.toLowerCase().includes(q) ||
+                item.tags.some(t => t.toLowerCase().includes(q))
+            ));
+            renderGrid(filtered, moviesSeriesGrid);
+        } else {
+            if (sliderSection) sliderSection.style.display = 'block';
+            if (booksSection) booksSection.style.display = 'block';
+            if (gamesSection) gamesSection.style.display = 'block';
+
+            if (moviesHeader) {
+                moviesHeader.querySelector('h3').innerHTML = `<i class="fa-solid fa-film me-2 text-success"></i>Movies & Series`;
+                moviesHeader.querySelector('p').style.display = 'block';
+                moviesHeader.querySelector('a').style.display = 'block';
+            }
+
+            // Re-render initial data
+            const booksItems = sortByRating(items.filter(item => item.tags[0] === 'Book'));
+            const gamesItems = sortByRating(items.filter(item => item.tags[0] === 'Game'));
+            const msItems = sortByRating(items.filter(item => item.tags[0] === 'Movie' || item.tags[0] === 'Series'));
+
+            renderGrid(booksItems.slice(0, 5), booksGrid);
+            renderGrid(gamesItems.slice(0, 5), gamesGrid);
+            renderGrid(msItems.slice(0, 5), moviesSeriesGrid);
+
+            // Remove search from URL if present
+            const newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
+            window.history.pushState({ path: newUrl }, '', newUrl);
+        }
+    });
+}
+
+function renderGrid(data, targetGrid) {
+    if (!targetGrid) return;
+    if (data.length === 0) {
+        targetGrid.innerHTML = `<div class="col-12 text-center py-5"><p class="text-secondary">No results found for your search.</p></div>`;
+        return;
+    }
+    targetGrid.innerHTML = data.map(r => `
+        <div onclick="toggleCard(this, '${r.id}')" class="category-card">
+            ${getCardRatingHtml(r.id, r.title)}
+            <img src="${r.img}" alt="${r.title}">
+            <div class="category-card-body">
+                <div class="category-card-title">${r.title}</div>
+                <div class="category-card-meta">${r.tags[0]} • ${r.creator} • ${r.year}</div>
+            </div>
+        </div>
+    `).join('');
+}
+
+if (sliderWrapper && booksGrid) {
+    const items = Object.entries(contentDB).map(([id, data]) => ({ id, ...data }));
+
+    // Top 5 items for the slider (ONLY MOVIES)
+    const movieItems = items.filter(item => item.tags[0] === 'Movie');
+    const shuffledMovies = [...movieItems].sort(() => 0.5 - Math.random());
+    const sliderItems = shuffledMovies.slice(0, 5);
     sliderWrapper.innerHTML = sliderItems.map(item => `
         <div class="swiper-slide">
             <div class="main-slider-item" style="background-image: url('${item.img}')">
@@ -175,7 +218,7 @@ if (sliderWrapper && featuredGrid) {
                         ${item.tags.map(t => `<span class="tag">${t}</span>`).join('')}
                     </div>
                     <div class="mt-4">
-                        <a href="${toPages}detail.html?id=${item.id}" class="btn btn-primary px-4 py-2" style="background: var(--accent); border: none; font-weight: 600;">View Details</a>
+                        <a href="detail.html?id=${item.id}" class="btn btn-primary px-4 py-2" style="background: var(--accent); border: none; font-weight: 600;">View Details</a>
                         <button onclick="globalAddToList('${item.id}', this)" class="btn btn-outline-light ms-3 px-4 py-2" style="border-radius: 8px;">+ Add to List</button>
                     </div>
                 </div>
@@ -183,67 +226,25 @@ if (sliderWrapper && featuredGrid) {
         </div>
     `).join('');
 
-    // Search Logic
-    const searchInput = document.getElementById('global-search');
-    const sliderSection = document.querySelector('.split-hero-container');
-    const categoryHeader = document.querySelector('.category-header');
+    // Search logic will execute via the event listener but we need to trigger it if there is a URL param
+    if (searchInput && searchInput.value) {
+        searchInput.dispatchEvent(new Event('input'));
+    } else {
+        // Initial Render
+        const booksItems = sortByRating(items.filter(item => item.tags[0] === 'Book'));
+        const gamesItems = sortByRating(items.filter(item => item.tags[0] === 'Game'));
+        const msItems = sortByRating(items.filter(item => item.tags[0] === 'Movie' || item.tags[0] === 'Series'));
 
-    const newReleasesGrid = document.getElementById('new-releases-container');
-    const newReleasesHeader = document.querySelector('.category-section-title i.fa-sparkles')?.closest('.category-section');
-
-    function renderGrid(data, targetGrid = featuredGrid) {
-        if (!targetGrid) return;
-        if (data.length === 0) {
-            targetGrid.innerHTML = `<div class="col-12 text-center py-5"><p class="text-secondary">No results found for your search.</p></div>`;
-            return;
-        }
-        targetGrid.innerHTML = data.map(r => `
-            <div onclick="toggleCard(this, '${r.id}')" class="category-card">
-                <img src="${r.img}" alt="${r.title}">
-                <div class="category-card-body">
-                    <div class="category-card-title">${r.title}</div>
-                    <div class="category-card-meta">${r.tags[0]} • ${r.creator} • ${r.year}</div>
-                </div>
-            </div>
-        `).join('');
+        renderGrid(booksItems.slice(0, 5), booksGrid);
+        renderGrid(gamesItems.slice(0, 5), gamesGrid);
+        renderGrid(msItems.slice(0, 5), moviesSeriesGrid);
     }
-
-    if (searchInput) {
-        searchInput.addEventListener('input', (e) => {
-            const query = e.target.value.toLowerCase().trim();
-            if (query.length > 0) {
-                if (sliderSection) sliderSection.style.display = 'none';
-                if (newReleasesHeader) newReleasesHeader.style.display = 'none';
-                if (categoryHeader) {
-                    categoryHeader.querySelector('h3').innerHTML = `<i class="fa-solid fa-magnifying-glass me-2 text-accent"></i>Search Results for "${query}"`;
-                    categoryHeader.querySelector('p').style.display = 'none';
-                }
-                const filtered = items.filter(item => 
-                    item.title.toLowerCase().includes(query) || 
-                    item.creator.toLowerCase().includes(query) ||
-                    item.tags.some(t => t.toLowerCase().includes(query))
-                );
-                renderGrid(filtered, featuredGrid);
-            } else {
-                if (sliderSection) sliderSection.style.display = 'block';
-                if (newReleasesHeader) newReleasesHeader.style.display = 'block';
-                if (categoryHeader) {
-                    categoryHeader.querySelector('h3').innerHTML = `<i class="fa-solid fa-fire me-2 text-accent"></i>Trending Now`;
-                    categoryHeader.querySelector('p').style.display = 'block';
-                }
-                renderGrid(items.slice(4, 8), newReleasesGrid);
-                renderGrid(items.slice(8), featuredGrid);
-            }
-        });
-    }
-
-    // Initial Render: 4 items for New Releases, rest for Trending
-    renderGrid(items.slice(4, 8), newReleasesGrid);
-    renderGrid(items.slice(8), featuredGrid);
 
     // Initialize Swiper
     new Swiper('.main-slider', {
         loop: true,
+        observer: true,
+        observeParents: true,
         autoplay: { delay: 5000, disableOnInteraction: false },
         pagination: { el: '.swiper-pagination', clickable: true },
         navigation: { nextEl: '.swiper-button-next', prevEl: '.swiper-button-prev' },
@@ -252,31 +253,35 @@ if (sliderWrapper && featuredGrid) {
     });
 }
 
-window.toggleCard = function(element, id) {
-    if(event.target.tagName === 'BUTTON' || event.target.closest('.expanded-actions')) return;
-    
+window.toggleCard = function (element, id) {
+    if (event.target.tagName === 'BUTTON' || event.target.closest('.expanded-actions')) return;
+
     const isExpanded = element.classList.contains('expanded');
-    
+
     // Close others
     document.querySelectorAll('.category-card.expanded, .featured-hero.expanded').forEach(el => {
-        if(el !== element) {
+        if (el !== element) {
             el.classList.remove('expanded');
             const content = el.querySelector('.card-expanded-content');
-            if(content) content.remove();
+            if (content) content.remove();
         }
     });
 
     if (isExpanded) {
         element.classList.remove('expanded');
         const content = element.querySelector('.card-expanded-content');
-        if(content) content.remove();
+        if (content) content.remove();
     } else {
         element.classList.add('expanded');
         const item = contentDB[id];
-        
-        const list = JSON.parse(localStorage.getItem('cultify_mylist') || '[]');
-        const inList = list.includes(id);
-        const btnHtml = inList 
+
+        let inList = false;
+        const uid = getCurrentUserId();
+        if (uid) {
+            const list = getUserList(uid);
+            inList = list.includes(id);
+        }
+        const btnHtml = inList
             ? `<button class="card-action-btn card-action-added" onclick="globalAddToList('${id}', this)"><i class="fa-solid fa-check me-2"></i>In List</button>`
             : `<button class="card-action-btn card-action-add" onclick="globalAddToList('${id}', this)"><i class="fa-solid fa-plus me-2"></i>Add to List</button>`;
 
@@ -289,57 +294,138 @@ window.toggleCard = function(element, id) {
                 </div>
                 <div class="expanded-actions" style="display:flex; gap:12px; margin-top:16px;">
                     ${btnHtml}
-                    <a href="${toPages}detail.html?id=${id}" class="card-action-btn card-action-details">Details</a>
+                    <a href="detail.html?id=${id}" class="card-action-btn card-action-details">Details</a>
                 </div>
             </div>
         `;
-        
-        if(element.classList.contains('featured-hero')) {
-           element.querySelector('.featured-hero-overlay').insertAdjacentHTML('beforeend', expandedHtml);
+
+        if (element.classList.contains('featured-hero')) {
+            element.querySelector('.featured-hero-overlay').insertAdjacentHTML('beforeend', expandedHtml);
         } else {
-           element.querySelector('.category-card-body').insertAdjacentHTML('beforeend', expandedHtml);
+            element.querySelector('.category-card-body').insertAdjacentHTML('beforeend', expandedHtml);
         }
     }
 }
 
-window.toggleMyList = function(event, id, btn) {
+window.globalAddToList = function (id, btn) {
+    if (!isLoggedIn()) {
+        showLoginModal();
+        return;
+    }
+    const uid = getCurrentUserId();
+    let list = getUserList(uid);
+    if (!list.includes(id)) {
+        addToUserList(uid, id);
+        if (btn) {
+            btn.innerHTML = '<i class="fa-solid fa-check me-2"></i>In List';
+            btn.className = 'btn btn-outline-light ms-3 px-4 py-2';
+            btn.style.opacity = '0.7';
+            btn.style.pointerEvents = 'auto';
+        }
+    } else {
+        removeFromUserList(uid, id);
+        if (btn) {
+            btn.innerHTML = '<i class="fa-solid fa-plus me-2"></i>Add to List';
+            btn.className = 'btn btn-primary ms-3 px-4 py-2';
+            btn.style.opacity = '1';
+            btn.style.pointerEvents = 'auto';
+        }
+    }
+}
+
+window.toggleMyList = function (event, id, btn) {
     event.stopPropagation();
     event.preventDefault();
-    
+
     if (!isLoggedIn()) {
         alert('Please log in to add items to your list!');
-        window.location.href = toPages + 'login.html';
+        window.location.href = 'login.html';
         return;
     }
 
-    let list = JSON.parse(localStorage.getItem('cultify_mylist') || '[]');
+    const uid = getCurrentUserId();
+    let list = getUserList(uid);
     if (!list.includes(id)) {
-        list.push(id);
-        localStorage.setItem('cultify_mylist', JSON.stringify(list));
+        addToUserList(uid, id);
         btn.innerHTML = '<i class="fa-solid fa-check me-2"></i>In List';
         btn.className = 'card-action-btn card-action-added';
+    } else {
+        removeFromUserList(uid, id);
+        btn.innerHTML = '<i class="fa-solid fa-plus me-2"></i>Add to List';
+        btn.className = 'card-action-btn card-action-add';
     }
 }
 
 // --- REVIEWS SECTION (index.html) ---
 const reviewsContainer = document.getElementById('reviews-container');
-    const allReviews = [
-        { user: 'Bayram Kartal', item: 'The Godfather', stars: 5, text: 'Sinema tarihinin en büyük yapıtlarından biri.' },
-        { user: 'Ali Kara', item: 'Vikings', stars: 5, text: 'Ragnar Lothbrok karakteri efsane işlenmiş.' },
-        { user: 'Emily Watson', item: 'Harry Potter', stars: 5, text: 'Always brings back magical childhood memories.' },
-        { user: 'Michael Schmidt', item: 'Dark', stars: 5, text: 'Die beste deutsche Serie aller Zeiten!' },
-        { user: 'Selin Kaya', item: '1984', stars: 5, text: 'Herkesin kütüphanesinde bulunması gereken bir eser.' },
-        { user: 'Arda Yılmaz', item: 'Inception', stars: 5, text: 'Rüyalar içinde rüyalar... Muazzam bir kurgu.' }
-    ];
 
 if (reviewsContainer) {
-    // Shuffle and pick 6
-    for (let i = allReviews.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [allReviews[i], allReviews[j]] = [allReviews[j], allReviews[i]]; }
-    const picked = allReviews.slice(0, 6);
-    reviewsContainer.innerHTML = picked.map(r => {
-        const starsHtml = Array(5).fill(0).map((_, i) => `<i class="fa-solid fa-star${i < r.stars ? '' : '" style="opacity:0.3'}"></i>`).join('');
-        return `<div class="review-card"><div class="review-header"><div class="review-avatar"><i class="fa-solid fa-user"></i></div><div><div class="review-user">${r.user}</div><div class="review-item-name">${r.item}</div></div></div><div class="review-stars">${starsHtml}</div><div class="review-text">${r.text}</div></div>`;
-    }).join('');
+    const allReviews = getCommunityReviews();
+    // Shuffle all reviews once
+    for (let i = allReviews.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1));[allReviews[i], allReviews[j]] = [allReviews[j], allReviews[i]]; }
+
+    let reviewsShown = 0;
+    const REVIEWS_PER_PAGE = 6;
+    const loadMoreContainer = document.getElementById('load-more-reviews-container');
+    const loadMoreBtn = document.getElementById('load-more-reviews-btn');
+
+    function renderReviewBatch() {
+        const batch = allReviews.slice(reviewsShown, reviewsShown + REVIEWS_PER_PAGE);
+        batch.forEach(rev => {
+            const item = contentDB[rev.itemId];
+            const col = document.createElement('div');
+            col.className = 'col-md-6 col-lg-4';
+            col.innerHTML = `
+                <div class="d-flex gap-3 p-3 h-100" style="background: rgba(19, 27, 44, 0.45); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 12px; transition: transform 0.3s ease; box-shadow: 0 4px 16px rgba(0,0,0,0.2);">
+                    <div style="width: 100px; flex-shrink: 0; cursor: pointer;" onclick="window.location.href='detail.html?id=${rev.itemId}'">
+                        <img src="${item ? item.img : ''}" style="width: 100%; height: 140px; object-fit: cover; border-radius: 8px;">
+                    </div>
+                    <div class="d-flex flex-column justify-content-center">
+                        <div class="text-warning mb-2" style="font-size: 0.8rem;">
+                            ${'<i class="fa-solid fa-star"></i>'.repeat(rev.stars)}
+                        </div>
+                        <p class="text-light mb-2" style="font-size: 0.9rem; font-style: italic; line-height: 1.4;">"${rev.text}"</p>
+                        <a href="profile.html?user=${rev.userHandle}" class="text-secondary fw-bold text-decoration-none" style="font-size: 0.8rem;">- ${rev.userName}</a>
+                    </div>
+                </div>
+            `;
+            col.style.opacity = '0';
+            col.style.transform = 'translateY(20px)';
+            col.style.transition = 'opacity 0.4s ease, transform 0.4s ease';
+            reviewsContainer.appendChild(col);
+            requestAnimationFrame(() => {
+                col.style.opacity = '1';
+                col.style.transform = 'translateY(0)';
+            });
+        });
+        reviewsShown += batch.length;
+
+        if (loadMoreContainer) {
+            if (reviewsShown < allReviews.length) {
+                loadMoreContainer.style.display = 'block';
+            } else {
+                loadMoreContainer.style.display = 'none';
+            }
+        }
+    }
+
+    renderReviewBatch();
+
+    if (loadMoreBtn) {
+        loadMoreBtn.addEventListener('click', renderReviewBatch);
+        loadMoreBtn.addEventListener('mouseenter', function () {
+            this.style.background = 'var(--accent)';
+            this.style.color = 'var(--bg-primary)';
+            this.style.transform = 'scale(1.1)';
+            this.style.boxShadow = '0 0 20px rgba(168, 85, 247, 0.4)';
+        });
+        loadMoreBtn.addEventListener('mouseleave', function () {
+            this.style.background = 'rgba(168, 85, 247, 0.1)';
+            this.style.color = 'var(--accent)';
+            this.style.transform = 'scale(1)';
+            this.style.boxShadow = 'none';
+        });
+    }
 }
 
 // --- DETAIL PAGE LOGIC ---
@@ -350,72 +436,174 @@ if (detailTitleEl && currentId) {
     const itemData = contentDB[currentId];
     if (itemData) {
         const pageTitle = document.getElementById('page-title');
-        if(pageTitle) pageTitle.textContent = `${itemData.title} — Cultify`;
+        if (pageTitle) pageTitle.textContent = `${itemData.title} — Cultify`;
         detailTitleEl.textContent = itemData.title;
         const yearEl = document.getElementById('detail-year');
-        if(yearEl) yearEl.textContent = itemData.year;
+        if (yearEl) yearEl.textContent = itemData.year;
         const lengthEl = document.getElementById('detail-length');
-        if(lengthEl) lengthEl.textContent = itemData.length;
+        if (lengthEl) lengthEl.textContent = itemData.length;
         const creatorEl = document.getElementById('detail-creator');
-        if(creatorEl) creatorEl.textContent = itemData.creator;
+        if (creatorEl) creatorEl.textContent = itemData.creator;
         const ageEl = document.getElementById('detail-age');
-        if(ageEl) ageEl.textContent = itemData.age;
+        if (ageEl) ageEl.textContent = itemData.age;
         const descEl = document.getElementById('detail-desc');
-        if(descEl) descEl.textContent = itemData.desc;
+        if (descEl) descEl.textContent = itemData.desc;
         const imgEl = document.getElementById('detail-image');
         if (imgEl && itemData.img) imgEl.src = itemData.img;
         const tagsContainer = document.getElementById('detail-tags');
         if (tagsContainer) tagsContainer.innerHTML = itemData.tags.map((tag, i) => `<span class="tag tag-color-${(i % 3) + 1}">${tag}</span>`).join('');
+
+        const avgRatingEl = document.getElementById('detail-average-rating');
+        if (avgRatingEl) {
+            const avg = getItemAverageRating(currentId);
+            avgRatingEl.textContent = avg == 0 ? 'N/A' : avg;
+        }
     }
 }
 
-// --- ADD TO LIST (localStorage) ---
+// --- ADD TO LIST (user-based via testData) ---
 const addListBtn = document.querySelector('.btn-add-list');
 if (addListBtn) {
-    // Update button state
-    const myList = JSON.parse(localStorage.getItem('cultify_mylist') || '[]');
-    if (currentId && myList.includes(currentId)) {
-        addListBtn.innerHTML = '<i class="fa-solid fa-check me-2"></i>In List';
-        addListBtn.style.backgroundColor = 'var(--accent)';
-        addListBtn.style.color = 'var(--bg-primary)';
+    const userId = getCurrentUserId();
+    if (userId && currentId) {
+        const myList = getUserList(userId);
+        if (myList.includes(currentId)) {
+            addListBtn.innerHTML = '<i class="fa-solid fa-check me-2"></i>In List';
+            addListBtn.style.backgroundColor = 'var(--accent)';
+            addListBtn.style.color = 'var(--bg-primary)';
+        }
     }
-    addListBtn.addEventListener('click', function() {
+    addListBtn.addEventListener('click', function () {
         if (!isLoggedIn()) { showLoginModal(); return; }
-        const list = JSON.parse(localStorage.getItem('cultify_mylist') || '[]');
-        if (currentId && !list.includes(currentId)) {
-            list.push(currentId);
-            localStorage.setItem('cultify_mylist', JSON.stringify(list));
-            this.innerHTML = '<i class="fa-solid fa-check me-2"></i>In List';
-            this.style.backgroundColor = 'var(--accent)';
-            this.style.color = 'var(--bg-primary)';
+        const uid = getCurrentUserId();
+        if (currentId && uid) {
+            const list = getUserList(uid);
+            if (!list.includes(currentId)) {
+                addToUserList(uid, currentId);
+                this.innerHTML = '<i class="fa-solid fa-check me-2"></i>In List';
+                this.style.backgroundColor = 'var(--accent)';
+                this.style.color = 'var(--bg-primary)';
+            }
         }
     });
 }
 
-// --- COMMENT LOGIN CHECK ---
+// --- DYNAMIC COMMENTS (detail page) ---
+const detailCommentsContainer = document.getElementById('detail-comments-container');
+if (detailCommentsContainer && currentId) {
+    function renderComments() {
+        const comments = getCommentsForItem(currentId);
+        const loggedUserId = getCurrentUserId();
+        detailCommentsContainer.innerHTML = '';
+        comments.forEach(c => {
+            const user = getUserById(c.userId);
+            const userName = user ? `${user.firstName} ${user.lastName}` : 'Unknown';
+            const userHandle = user ? (user.firstName + user.lastName).toLowerCase().replace(/\s/g, '') : 'unknown';
+            const userAvatar = user ? user.avatar : 'fa-solid fa-user';
+            const isOwn = loggedUserId && c.userId === loggedUserId;
+            const editBtn = isOwn ? `<button class="btn btn-sm btn-outline-secondary ms-2" style="font-size:0.7rem; padding:2px 8px; border-radius:6px;" onclick="editMyComment('${currentId}', '${c.id}', this)"><i class="fa-solid fa-pen-to-square"></i></button>` : '';
+            const commentEl = document.createElement('div');
+            commentEl.className = 'comment-item';
+            commentEl.innerHTML = `<div class="comment-avatar"><i class="${userAvatar}"></i></div><div style="flex:1;"><div style="display:flex;align-items:center;"><a href="profile.html?user=${userHandle}" class="comment-username" style="text-decoration: none;">${userName}</a>${editBtn}</div><div class="comment-text">${c.text}</div></div>`;
+            detailCommentsContainer.appendChild(commentEl);
+        });
+    }
+    renderComments();
+}
+
+window.editMyComment = function(itemId, commentId, btn) {
+    const newText = prompt('Edit your comment:');
+    if (newText !== null && newText.trim().length > 0) {
+        editComment(itemId, commentId, newText.trim());
+        alert('Your edited comment has been resubmitted and is pending admin approval.');
+        // Re-render to remove the now-pending comment from view
+        if (detailCommentsContainer && currentId) {
+            const comments = getCommentsForItem(currentId);
+            const loggedUserId = getCurrentUserId();
+            detailCommentsContainer.innerHTML = '';
+            comments.forEach(c => {
+                const user = getUserById(c.userId);
+                const userName = user ? `${user.firstName} ${user.lastName}` : 'Unknown';
+                const userHandle = user ? (user.firstName + user.lastName).toLowerCase().replace(/\s/g, '') : 'unknown';
+                const userAvatar = user ? user.avatar : 'fa-solid fa-user';
+                const isOwn = loggedUserId && c.userId === loggedUserId;
+                const editBtn = isOwn ? `<button class="btn btn-sm btn-outline-secondary ms-2" style="font-size:0.7rem; padding:2px 8px; border-radius:6px;" onclick="editMyComment('${currentId}', '${c.id}', this)"><i class="fa-solid fa-pen-to-square"></i></button>` : '';
+                const commentEl = document.createElement('div');
+                commentEl.className = 'comment-item';
+                commentEl.innerHTML = `<div class="comment-avatar"><i class="${userAvatar}"></i></div><div style="flex:1;"><div style="display:flex;align-items:center;"><a href="profile.html?user=${userHandle}" class="comment-username" style="text-decoration: none;">${userName}</a>${editBtn}</div><div class="comment-text">${c.text}</div></div>`;
+                detailCommentsContainer.appendChild(commentEl);
+            });
+        }
+    }
+};
+
 const commentSendBtn = document.querySelector('.comment-send-btn');
 if (commentSendBtn) {
-    commentSendBtn.addEventListener('click', function() {
-        if (!isLoggedIn()) { window.location.href = toPages + 'login.html'; return; }
+    commentSendBtn.addEventListener('click', function () {
+        if (!isLoggedIn()) { showLoginModal(); return; }
         const input = document.querySelector('.comment-input-wrapper input');
-        if (input && input.value.trim()) {
-            const commentList = document.querySelector('.content-card:last-child');
-            const newComment = document.createElement('div');
-            newComment.className = 'comment-item';
-            newComment.innerHTML = `<div class="comment-avatar"><i class="fa-solid fa-user"></i></div><div><div class="comment-username">Elif Çiçek</div><div class="comment-text">${input.value}</div></div>`;
-            commentList.appendChild(newComment);
+        if (input && input.value.trim() && currentId) {
+            const uid = getCurrentUserId();
+            addComment(currentId, uid, input.value.trim());
             input.value = '';
+            alert('Your comment has been submitted and is pending admin approval.');
+            // Re-render comments
+            if (detailCommentsContainer) {
+                const comments = getCommentsForItem(currentId);
+                const loggedUserId = getCurrentUserId();
+                detailCommentsContainer.innerHTML = '';
+                comments.forEach(c => {
+                    const user = getUserById(c.userId);
+                    const userName = user ? `${user.firstName} ${user.lastName}` : 'Unknown';
+                    const userHandle = user ? (user.firstName + user.lastName).toLowerCase().replace(/\s/g, '') : 'unknown';
+                    const userAvatar = user ? user.avatar : 'fa-solid fa-user';
+                    const isOwn = loggedUserId && c.userId === loggedUserId;
+                    const editBtn = isOwn ? `<button class="btn btn-sm btn-outline-secondary ms-2" style="font-size:0.7rem; padding:2px 8px; border-radius:6px;" onclick="editMyComment('${currentId}', '${c.id}', this)"><i class="fa-solid fa-pen-to-square"></i></button>` : '';
+                    const commentEl = document.createElement('div');
+                    commentEl.className = 'comment-item';
+                    commentEl.innerHTML = `<div class="comment-avatar"><i class="${userAvatar}"></i></div><div style="flex:1;"><div style="display:flex;align-items:center;"><a href="profile.html?user=${userHandle}" class="comment-username" style="text-decoration: none;">${userName}</a>${editBtn}</div><div class="comment-text">${c.text}</div></div>`;
+                    detailCommentsContainer.appendChild(commentEl);
+                });
+            }
         }
     });
 }
 
-// --- STAR RATING ---
+// --- STAR RATING (user-based via testData) ---
 const stars = document.querySelectorAll('.star-rating i');
 if (stars.length > 0) {
+    // Load existing rating for current user
+    const ratingUserId = getCurrentUserId();
+    if (ratingUserId && currentId) {
+        const existingRating = getRating(ratingUserId, currentId);
+        if (existingRating > 0) {
+            stars.forEach((s, i) => { if (i < existingRating) s.classList.add('active'); else s.classList.remove('active'); });
+        } else {
+            stars.forEach(s => s.classList.remove('active'));
+        }
+    } else {
+        stars.forEach(s => s.classList.remove('active'));
+    }
+
     stars.forEach((star, index) => {
         star.addEventListener('click', () => {
             if (!isLoggedIn()) { showLoginModal(); return; }
-            stars.forEach((s, i) => { if (i <= index) s.classList.add('active'); else s.classList.remove('active'); });
+            const uid = getCurrentUserId();
+            const currentExistingRating = getRating(uid, currentId);
+            let rating = index + 1;
+
+            // If clicking the same rating, toggle it off
+            if (currentExistingRating === rating) {
+                rating = 0;
+            }
+
+            setRating(uid, currentId, rating);
+
+            if (rating > 0) {
+                stars.forEach((s, i) => { if (i < rating) s.classList.add('active'); else s.classList.remove('active'); });
+            } else {
+                stars.forEach(s => s.classList.remove('active'));
+            }
         });
         star.addEventListener('mouseenter', () => {
             stars.forEach((s, i) => { s.style.color = i <= index ? '#fbbf24' : ''; });
@@ -425,10 +613,11 @@ if (stars.length > 0) {
     if (ratingContainer) ratingContainer.addEventListener('mouseleave', () => { stars.forEach(s => { s.style.color = ''; }); });
 }
 
-// --- MY LIST PAGE ---
+// --- MY LIST PAGE (user-based) ---
 const mylistGrid = document.getElementById('mylist-grid');
 if (mylistGrid) {
-    const list = JSON.parse(localStorage.getItem('cultify_mylist') || '[]');
+    const userId = getCurrentUserId();
+    const list = userId ? getUserList(userId) : [];
     const emptyEl = document.getElementById('mylist-empty');
     if (list.length === 0) {
         if (emptyEl) emptyEl.style.display = '';
@@ -438,34 +627,32 @@ if (mylistGrid) {
         mylistGrid.innerHTML = list.map(id => {
             const item = contentDB[id];
             if (!item) return '';
-            return `<div class="mylist-card" data-id="${id}"><button class="mylist-remove-btn" onclick="removeFromList(event, '${id}')"><i class="fa-solid fa-xmark"></i></button><a href="${toPages}detail.html?id=${id}" class="text-decoration-none"><img src="${item.img}" alt="${item.title}"><div class="mylist-card-body"><div class="mylist-card-title">${item.title}</div><div class="mylist-card-meta">${item.tags[0]} • ${item.creator} • ${item.year}</div></div></a></div>`;
+            return `<div class="mylist-card" data-id="${id}"><button class="mylist-remove-btn" onclick="removeFromList(event, '${id}')"><i class="fa-solid fa-xmark"></i></button><a href="detail.html?id=${id}" class="text-decoration-none">${getCardRatingHtml(id, item.title)}<img src="${item.img}" alt="${item.title}"><div class="mylist-card-body"><div class="mylist-card-title">${item.title}</div><div class="mylist-card-meta">${item.tags[0]} • ${item.creator} • ${item.year}</div></div></a></div>`;
         }).join('');
     }
 }
-window.removeFromList = function(event, id) {
+window.removeFromList = function (event, id) {
     event.stopPropagation();
     event.preventDefault();
-    let list = JSON.parse(localStorage.getItem('cultify_mylist') || '[]');
-    list = list.filter(x => x !== id);
-    localStorage.setItem('cultify_mylist', JSON.stringify(list));
+    const uid = getCurrentUserId();
+    if (uid) {
+        removeFromUserList(uid, id);
+    }
     location.reload();
 };
 
-// --- LOGIN FORM ---
+// --- LOGIN FORM (via testData) ---
 const loginForm = document.getElementById('login-form');
 if (loginForm) {
-    loginForm.addEventListener('submit', function(e) {
+    loginForm.addEventListener('submit', function (e) {
         e.preventDefault();
         const email = document.getElementById('email').value;
         const pass = document.getElementById('password').value;
 
-        if (email === 'admin@cult.com' && pass === 'admin123') {
-            setLoggedIn(true, 'Elif Çiçek', 'admin');
-            alert('Login successful! Welcome back, Elif.');
-            window.location.href = toRoot + 'index.html';
-        } else if (email === 'user@cult.com' && pass === 'user123') {
-            setLoggedIn(true, 'Bayram Kartal', 'user');
-            alert('Login successful! Welcome, Bayram.');
+        const user = getUser(email, pass);
+        if (user) {
+            loginUser(user);
+            alert(`Login successful! Welcome, ${user.firstName}.`);
             window.location.href = toRoot + 'index.html';
         } else {
             alert('Invalid credentials! Please check your email and password.');
@@ -473,39 +660,149 @@ if (loginForm) {
     });
 }
 
-// --- REGISTER FORM ---
+// --- REGISTER FORM (via testData) ---
 const registerForm = document.getElementById('register-form');
 if (registerForm) {
-    registerForm.addEventListener('submit', function(e) {
+    const avatarOptions = document.querySelectorAll('.avatar-option');
+    avatarOptions.forEach(opt => {
+        opt.addEventListener('click', () => {
+            avatarOptions.forEach(o => o.classList.remove('selected'));
+            opt.classList.add('selected');
+        });
+    });
+
+    registerForm.addEventListener('submit', function (e) {
         e.preventDefault();
-        alert('Registration successful! Redirecting to login page.');
-        window.location.href = 'login.html';
+        const inputs = registerForm.querySelectorAll('.auth-input');
+        const firstName = inputs[0] ? inputs[0].value.trim() : '';
+        const lastName = inputs[1] ? inputs[1].value.trim() : '';
+        const email = inputs[2] ? inputs[2].value.trim() : '';
+        const password = inputs[3] ? inputs[3].value.trim() : '';
+
+        if (!firstName || !lastName || !email || !password) {
+            alert('Please fill in all fields.');
+            return;
+        }
+
+        const selectedAvatar = document.querySelector('.avatar-option.selected i');
+        const avatar = selectedAvatar ? selectedAvatar.className : 'fa-solid fa-user';
+
+        const result = registerUser({
+            firstName: firstName,
+            lastName: lastName,
+            email: email,
+            password: password,
+            avatar: avatar
+        });
+
+        if (result.success) {
+            loginUser(result.user);
+            alert(`Registration successful! Welcome, ${result.user.firstName}.`);
+            window.location.href = 'index.html';
+        } else {
+            alert(result.message);
+        }
     });
 }
 
-// --- PROFILE PICTURE EDIT ---
-const editBtn = document.querySelector('.profile-edit-button');
-const ppInput = document.querySelector('#pp-input');
-const avatarCircle = document.querySelector('.profile-avatar-circle');
-if (editBtn && ppInput && avatarCircle) {
-    editBtn.addEventListener('click', (e) => { e.preventDefault(); ppInput.click(); });
-    ppInput.addEventListener('change', function() {
-        const file = this.files[0];
-        if (file) {
-            const reader = new FileReader();
-            reader.onload = function(e) { avatarCircle.innerHTML = `<img src="${e.target.result}" alt="PP" class="uploaded-pp">`; };
-            reader.readAsDataURL(file);
+// --- PROFILE PICTURE EDIT (Settings) ---
+const settingAvatarCircle = document.getElementById('setting-avatar-circle');
+const editBtn = document.getElementById('setting-avatar-edit-btn');
+const approveBtn = document.getElementById('setting-avatar-approve-btn');
+const selectionGrid = document.getElementById('setting-avatar-selection-grid');
+
+// Init Avatar from current user
+function initAvatar() {
+    const currentUser = getCurrentUser();
+    const avatarClass = currentUser ? currentUser.avatar : (localStorage.getItem('cultify_user_avatar') || 'fa-solid fa-user');
+    if (settingAvatarCircle) settingAvatarCircle.innerHTML = `<i class="${avatarClass}"></i>`;
+    const profilePageAvatar = document.querySelector('.profile-avatar-circle');
+    if (profilePageAvatar && !settingAvatarCircle) profilePageAvatar.innerHTML = `<i class="${avatarClass}"></i>`;
+}
+initAvatar();
+
+if (editBtn && approveBtn && selectionGrid) {
+    const avatarOpts = selectionGrid.querySelectorAll('.avatar-option');
+    const currentUser = getCurrentUser();
+    let tempAvatar = currentUser ? currentUser.avatar : 'fa-solid fa-user';
+
+    avatarOpts.forEach(o => {
+        if (o.querySelector('i').className === tempAvatar) o.classList.add('selected');
+        else o.classList.remove('selected');
+    });
+
+    editBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        selectionGrid.style.display = 'block';
+        approveBtn.style.display = 'block';
+        editBtn.style.display = 'none';
+    });
+
+    avatarOpts.forEach(opt => {
+        opt.addEventListener('click', () => {
+            avatarOpts.forEach(o => o.classList.remove('selected'));
+            opt.classList.add('selected');
+            tempAvatar = opt.querySelector('i').className;
+            settingAvatarCircle.innerHTML = `<i class="${tempAvatar}"></i>`;
+        });
+    });
+
+    approveBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        const uid = getCurrentUserId();
+        if (uid) {
+            updateUser(uid, { avatar: tempAvatar });
+            localStorage.setItem('cultify_user_avatar', tempAvatar);
         }
+        selectionGrid.style.display = 'none';
+        approveBtn.style.display = 'none';
+        editBtn.style.display = 'block';
+        alert('Avatar updated successfully!');
+
+        const userIcon = document.querySelector('#header-logged-in i.fa-user, #header-logged-in i[class*="fa-user-"]');
+        if (userIcon) userIcon.className = tempAvatar;
     });
 }
 
 // --- ACCOUNT DELETE ---
 const deleteBtn = document.getElementById('delete-account');
-if (deleteBtn) { deleteBtn.addEventListener('click', function(e) { e.preventDefault(); if (confirm('Are you sure you want to delete your account?')) alert('Your account has been deleted.'); }); }
+if (deleteBtn) {
+    deleteBtn.addEventListener('click', function (e) {
+        e.preventDefault();
+        if (confirm('Are you sure you want to delete your account?')) {
+            const uid = getCurrentUserId();
+            if (uid) deleteUser(uid);
+            logoutUser();
+            alert('Your account has been deleted.');
+            window.location.href = 'index.html';
+        }
+    });
+}
 
 // --- ACCOUNT UPDATE ---
 const updateBtn = document.getElementById('update-account');
-if (updateBtn) { updateBtn.addEventListener('click', function(e) { e.preventDefault(); alert('Your account has been updated.'); }); }
+if (updateBtn) {
+    updateBtn.addEventListener('click', function (e) {
+        e.preventDefault();
+        const uid = getCurrentUserId();
+        if (!uid) return;
+        const firstName = document.getElementById('setting-firstname');
+        const lastName = document.getElementById('setting-lastname');
+        const username = document.getElementById('setting-username');
+        const aboutMe = document.getElementById('setting-aboutme');
+        const updates = {};
+        if (firstName && firstName.value.trim()) updates.firstName = firstName.value.trim();
+        if (lastName && lastName.value.trim()) updates.lastName = lastName.value.trim();
+        if (aboutMe && aboutMe.value.trim()) updates.aboutMe = aboutMe.value.trim();
+        updateUser(uid, updates);
+        if (updates.firstName || updates.lastName) {
+            const name = `${updates.firstName || ''} ${updates.lastName || ''}`.trim();
+            localStorage.setItem('cultify_user_name', name);
+        }
+        alert('Account updated successfully!');
+    });
+}
+
 
 // --- AVATAR SELECTION ---
 const avatarOptions = document.querySelectorAll('.avatar-option');
@@ -534,34 +831,178 @@ if (categoryNameEl && categoryType) {
     if (activeGrid) activeGrid.style.display = '';
 }
 
-// --- NAV ACTIVE STATE ---
-const currentPage = window.location.pathname.split('/').pop();
-const navLinks = document.querySelectorAll('nav a');
-navLinks.forEach(link => {
-    const href = link.getAttribute('href');
-    if (href === currentPage || (currentPage === '' && href === 'index.html')) link.classList.add('active');
-    else if (href && href.includes('category.html') && currentPage === 'category.html') {
-        const linkType = new URL(link.href, window.location.origin).searchParams.get('type');
-        if (linkType === categoryType) link.classList.add('active'); else link.classList.remove('active');
-    } else link.classList.remove('active');
-});
-
-// --- SWIPER ---
-const bookSwiperEl = document.querySelector(".bookSwiper");
-if (bookSwiperEl) { new Swiper(".bookSwiper", { slidesPerView: 1, spaceBetween: 20, loop: false, grabCursor: true, pagination: { el: ".swiper-pagination", clickable: true, dynamicBullets: true }, navigation: { nextEl: ".swiper-button-next", prevEl: ".swiper-button-prev" }, breakpoints: { 576: { slidesPerView: 2 }, 768: { slidesPerView: 3 }, 1024: { slidesPerView: 4 } } }); }
+// --- SWIPER (Profile) ---
 const profileSwiperEl = document.querySelector(".profileSwiper");
 if (profileSwiperEl) { new Swiper(".profileSwiper", { slidesPerView: 2, spaceBetween: 15, grabCursor: true, breakpoints: { 768: { slidesPerView: 4, spaceBetween: 20 } } }); }
+
+// --- CATEGORY PAGE DYNAMIC GRID ---
+const gridBooks = document.getElementById('grid-books');
+const gridGames = document.getElementById('grid-games');
+const gridMovies = document.getElementById('grid-movies');
+
+if (gridBooks || gridGames || gridMovies) {
+    function renderCategoryGrid(grid, filterTag) {
+        if (!grid) return;
+        const items = sortByRating(Object.entries(contentDB)
+            .filter(([_, data]) => data.tags[0] === filterTag)
+            .map(([id, data]) => ({ id, ...data })));
+        grid.innerHTML = items.map(item => `
+            <div onclick="toggleCard(this, '${item.id}')" class="category-card">
+                ${getCardRatingHtml(item.id, item.title)}
+                <img src="${item.img}" alt="${item.title}">
+                <div class="category-card-body">
+                    <div class="category-card-title">${item.title}</div>
+                    <div class="category-card-meta">${item.creator} • ${item.year}</div>
+                </div>
+            </div>
+        `).join('');
+    }
+    renderCategoryGrid(gridBooks, 'Book');
+    renderCategoryGrid(gridGames, 'Game');
+    // Movies grid includes both Movie and Series
+    if (gridMovies) {
+        const movieSeriesItems = sortByRating(Object.entries(contentDB)
+            .filter(([_, data]) => data.tags[0] === 'Movie' || data.tags[0] === 'Series')
+            .map(([id, data]) => ({ id, ...data })));
+        gridMovies.innerHTML = movieSeriesItems.map(item => `
+            <div onclick="toggleCard(this, '${item.id}')" class="category-card">
+                ${getCardRatingHtml(item.id, item.title)}
+                <img src="${item.img}" alt="${item.title}">
+                <div class="category-card-body">
+                    <div class="category-card-title">${item.title}</div>
+                    <div class="category-card-meta">${item.creator} • ${item.year}</div>
+                </div>
+            </div>
+        `).join('');
+    }
+}
+// --- PROFILE PAGE DYNAMICS ---
+const profileMyListContainer = document.getElementById('profile-mylist-container');
+const profileReviewsContainer = document.getElementById('profile-reviews-container');
+const profileGamesStat = document.getElementById('profile-games-stat');
+const profileMoviesStat = document.getElementById('profile-movies-stat');
+const profileBooksStat = document.getElementById('profile-books-stat');
+
+if (profileMyListContainer || profileReviewsContainer) {
+    const currentUid = getCurrentUserId();
+    const myListIds = currentUid ? getUserList(currentUid) : [];
+    if (profileMyListContainer) {
+        if (myListIds.length === 0) {
+            profileMyListContainer.innerHTML = `<div class="text-center w-100 text-secondary py-4 fst-italic" style="grid-column: 1/-1;">Your list is currently empty.</div>`;
+            profileMyListContainer.classList.remove('swiper-wrapper'); // Remove wrapper class if empty so text centers properly
+            profileMyListContainer.style.display = 'block';
+        } else {
+            const displayItems = myListIds.slice(0, 4);
+            profileMyListContainer.innerHTML = displayItems.map(id => {
+                const item = contentDB[id];
+                if (!item) return '';
+                return `<div class="swiper-slide"><img src="${item.img}" class="mini-book-cover" alt="${item.title}" style="cursor:pointer; width:100px; height:140px; object-fit:cover; border-radius:8px;" onclick="window.location.href='detail.html?id=${id}'"></div>`;
+            }).join('');
+        }
+    }
+
+    // 2. Fetch User Reviews
+    let userReviews = JSON.parse(localStorage.getItem('cultify_user_reviews') || '[]');
+
+    // 3. Render Reviews
+    if (profileReviewsContainer) {
+        if (userReviews.length === 0) {
+            profileReviewsContainer.innerHTML = `<div class="text-center w-100 text-secondary py-4 fst-italic">You haven't written any reviews yet.</div>`;
+        } else {
+            profileReviewsContainer.innerHTML = userReviews.map(rev => {
+                const item = contentDB[rev.itemId];
+                if (!item) return '';
+                return `
+                    <div class="col-md-6 col-lg-4">
+                        <div class="d-flex gap-3 p-3 h-100" style="background: rgba(19, 27, 44, 0.45); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 12px; box-shadow: 0 4px 16px rgba(0,0,0,0.2);">
+                            <div style="width: 100px; flex-shrink: 0; cursor: pointer;" onclick="window.location.href='detail.html?id=${rev.itemId}'">
+                                <img src="${item.img}" style="width: 100%; height: 140px; object-fit: cover; border-radius: 8px;">
+                            </div>
+                            <div class="d-flex flex-column justify-content-center w-100">
+                                <div class="text-warning mb-2" style="font-size: 0.8rem;">
+                                    ${'<i class="fa-solid fa-star"></i>'.repeat(rev.rating)}${'<i class="fa-regular fa-star"></i>'.repeat(5 - rev.rating)}
+                                </div>
+                                <p class="text-white small fst-italic mb-2" style="display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;">
+                                    "${rev.text}"
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+    }
+
+    // 4. Calculate Stats & Prepare Modal Data
+    const categoryData = { games: [], movies: [], books: [] };
+
+    userReviews.forEach(rev => {
+        const item = contentDB[rev.itemId];
+        if (item) {
+            if (item.tags[0] === 'Game') categoryData.games.push({ id: rev.itemId, ...item, rating: rev.rating });
+            else if (item.tags[0] === 'Movie' || item.tags[0] === 'Series') categoryData.movies.push({ id: rev.itemId, ...item, rating: rev.rating });
+            else if (item.tags[0] === 'Book') categoryData.books.push({ id: rev.itemId, ...item, rating: rev.rating });
+        }
+    });
+
+    if (profileGamesStat) profileGamesStat.textContent = categoryData.games.length;
+    if (profileMoviesStat) profileMoviesStat.textContent = categoryData.movies.length;
+    if (profileBooksStat) profileBooksStat.textContent = categoryData.books.length;
+
+    // 5. Stats Modals Logic
+    const statsModal = document.getElementById('stats-modal');
+    const closeStatsModal = document.getElementById('close-stats-modal');
+    const statsModalTitle = document.getElementById('stats-modal-title');
+    const statsModalContent = document.getElementById('stats-modal-content');
+
+    function openStatsModal(category, title) {
+        if (!statsModal) return;
+        statsModalTitle.textContent = title;
+        const items = categoryData[category];
+
+        if (items.length === 0) {
+            statsModalContent.innerHTML = `<div class="text-center text-secondary py-5">No ${title.toLowerCase()} rated yet.</div>`;
+        } else {
+            statsModalContent.innerHTML = items.map(item => `
+                <div class="d-flex align-items-center p-3" style="background: rgba(255,255,255,0.02); border-radius: 8px; border: 1px solid rgba(255,255,255,0.05);">
+                    <img src="${item.img}" style="width: 60px; height: 80px; object-fit: cover; border-radius: 6px; cursor:pointer;" onclick="window.location.href='detail.html?id=${item.id}'">
+                    <div class="ms-3 flex-grow-1">
+                        <h6 class="text-white mb-1" style="cursor:pointer;" onclick="window.location.href='detail.html?id=${item.id}'">${item.title}</h6>
+                        <div class="text-warning small mb-1">
+                            ${'<i class="fa-solid fa-star"></i>'.repeat(item.rating)}${'<i class="fa-regular fa-star"></i>'.repeat(5 - item.rating)}
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        statsModal.style.display = 'flex';
+    }
+
+    const cardGames = document.getElementById('profile-games-card');
+    const cardMovies = document.getElementById('profile-movies-card');
+    const cardBooks = document.getElementById('profile-books-card');
+
+    if (cardGames) cardGames.addEventListener('click', () => openStatsModal('games', 'Games'));
+    if (cardMovies) cardMovies.addEventListener('click', () => openStatsModal('movies', 'Movies & Series'));
+    if (cardBooks) cardBooks.addEventListener('click', () => openStatsModal('books', 'Books'));
+
+    if (closeStatsModal) closeStatsModal.addEventListener('click', () => statsModal.style.display = 'none');
+    if (statsModal) statsModal.addEventListener('click', (e) => {
+        if (e.target === statsModal) statsModal.style.display = 'none';
+    });
+}
 
 // --- STARS BACKGROUND ---
 function createStars() {
     const starsContainer = document.createElement('div');
     starsContainer.id = 'stars-bg-container';
-    
+
     // Add 3 layers of stars
     for (let i = 1; i <= 3; i++) {
         const layer = document.createElement('div');
         layer.className = `star-layer star-layer-${i}`;
-        
+
         let boxShadows = [];
         const numStars = i === 1 ? 150 : (i === 2 ? 75 : 30); // More small stars, fewer big stars
         for (let j = 0; j < numStars; j++) {
@@ -569,18 +1010,18 @@ function createStars() {
             const y = Math.floor(Math.random() * 100);
             boxShadows.push(`${x}vw ${y}vh #fff`);
         }
-        
+
         layer.style.boxShadow = boxShadows.join(', ');
-        
+
         // Duplicate layer for seamless scrolling animation
         const layerAfter = document.createElement('div');
         layerAfter.className = `star-layer star-layer-${i} after`;
         layerAfter.style.boxShadow = boxShadows.join(', ');
-        
+
         starsContainer.appendChild(layer);
         starsContainer.appendChild(layerAfter);
     }
-    
+
     // Insert behind everything
     document.body.prepend(starsContainer);
 }
