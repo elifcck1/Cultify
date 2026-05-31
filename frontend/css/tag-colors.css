@@ -1,0 +1,142 @@
+/* ==========================================
+   Tag Color Definitions
+   ========================================== */
+
+/* Category Tags */
+.detail-tag.tag-movie,
+.detail-tag.tag-movies\/series {
+  background: rgba(20, 184, 166, 0.12);
+  color: #2dd4bf;
+  border-color: rgba(20, 184, 166, 0.3);
+}
+
+.detail-tag.tag-series {
+  background: rgba(56, 189, 248, 0.12);
+  color: #38bdf8;
+  border-color: rgba(56, 189, 248, 0.3);
+}
+
+.detail-tag.tag-books,
+.detail-tag.tag-book {
+  background: rgba(20, 184, 166, 0.12);
+  color: #2dd4bf;
+  border-color: rgba(20, 184, 166, 0.3);
+}
+
+.detail-tag.tag-games,
+.detail-tag.tag-game {
+  background: rgba(99, 102, 241, 0.12);
+  color: #818cf8;
+  border-color: rgba(99, 102, 241, 0.3);
+}
+
+/* Genre Tags */
+.detail-tag.tag-action {
+  background: rgba(34, 197, 94, 0.12);
+  color: #4ade80;
+  border-color: rgba(34, 197, 94, 0.3);
+}
+
+.detail-tag.tag-crime,
+.detail-tag.tag-thriller,
+.detail-tag.tag-horror {
+  background: rgba(239, 68, 68, 0.12);
+  color: #f87171;
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
+.detail-tag.tag-drama,
+.detail-tag.tag-romance {
+  background: rgba(168, 85, 247, 0.12);
+  color: #c084fc;
+  border-color: rgba(168, 85, 247, 0.3);
+}
+
+.detail-tag.tag-comedy {
+  background: rgba(250, 204, 21, 0.12);
+  color: #fde047;
+  border-color: rgba(250, 204, 21, 0.3);
+}
+
+.detail-tag.tag-sci-fi,
+.detail-tag.tag-fantasy {
+  background: rgba(99, 102, 241, 0.12);
+  color: #818cf8;
+  border-color: rgba(99, 102, 241, 0.3);
+}
+
+.detail-tag.tag-adventure,
+.detail-tag.tag-animation {
+  background: rgba(251, 146, 60, 0.12);
+  color: #fb923c;
+  border-color: rgba(251, 146, 60, 0.3);
+}
+
+.detail-tag.tag-war,
+.detail-tag.tag-history,
+.detail-tag.tag-western {
+  background: rgba(180, 83, 9, 0.12);
+  color: #fbbf24;
+  border-color: rgba(180, 83, 9, 0.3);
+}
+
+.detail-tag.tag-racing,
+.detail-tag.tag-sports {
+  background: rgba(14, 165, 233, 0.12);
+  color: #38bdf8;
+  border-color: rgba(14, 165, 233, 0.3);
+}
+
+.detail-tag.tag-mystery {
+  background: rgba(192, 132, 252, 0.12);
+  color: #c084fc;
+  border-color: rgba(192, 132, 252, 0.3);
+}
+
+.detail-tag.tag-music,
+.detail-tag.tag-musical {
+  background: rgba(236, 72, 153, 0.12);
+  color: #f472b6;
+  border-color: rgba(236, 72, 153, 0.3);
+}
+
+.detail-tag.tag-documentary,
+.detail-tag.tag-family {
+  background: rgba(34, 197, 94, 0.12);
+  color: #4ade80;
+  border-color: rgba(34, 197, 94, 0.3);
+}
+
+/* Game Genre Tags */
+.detail-tag.tag-rpg,
+.detail-tag.tag-strategy,
+.detail-tag.tag-simulation {
+  background: rgba(168, 85, 247, 0.12);
+  color: #c084fc;
+  border-color: rgba(168, 85, 247, 0.3);
+}
+
+.detail-tag.tag-fps,
+.detail-tag.tag-shooter,
+.detail-tag.tag-multiplayer,
+.detail-tag.tag-mmo {
+  background: rgba(239, 68, 68, 0.12);
+  color: #f87171;
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
+.detail-tag.tag-open-world,
+.detail-tag.tag-sandbox,
+.detail-tag.tag-indie {
+  background: rgba(251, 146, 60, 0.12);
+  color: #fb923c;
+  border-color: rgba(251, 146, 60, 0.3);
+}
+
+.detail-tag.tag-racing,
+.detail-tag.tag-puzzle,
+.detail-tag.tag-platformer {
+  background: rgba(250, 204, 21, 0.12);
+  color: #fde047;
+  border-color: rgba(250, 204, 21, 0.3);
+}

@@ -1,0 +1,51 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cultify - Register</title>
+    <link rel="icon" type="image/svg+xml" href="../images/main-logo.svg">
+    <link rel="stylesheet" href="../css/style.css">
+    <link rel="stylesheet" href="../css/tag-colors.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <script src="../js/config.js"></script>
+    <script src="../js/api-client.js"></script>
+    <script src="../js/cultify-data.js"></script>
+    <script src="../js/app.js"></script>
+    <script src="../js/minimal.js"></script>
+</head>
+
+<body>
+    <header id="app-header"></header>
+    <div class="container" style="max-width: 400px; margin-top: 3rem;">
+        <h1 class="text-center mb-1">Register</h1>
+        <form id="register-form">
+            <div class="form-group">
+                <label for="fname">First Name</label>
+                <input type="text" id="fname" class="form-control" required maxlength="15">
+            </div>
+            <div class="form-group">
+                <label for="lname">Last Name</label>
+                <input type="text" id="lname" class="form-control" required maxlength="15">
+            </div>
+            <div class="form-group">
+                <label for="email">Email</label>
+                <input type="email" id="email" class="form-control" required maxlength="63">
+            </div>
+            <div class="form-group">
+                <label for="password">Password</label>
+                <div style="position: relative;">
+                    <input type="password" id="password" class="form-control" required maxlength="30" style="padding-right: 40px;">
+                    <i class="fa-regular fa-eye" id="togglePassword" style="position: absolute; right: 15px; top: 50%; transform: translateY(-50%); cursor: pointer; color: var(--text-secondary); opacity: 0.7; transition: opacity 0.2s; z-index: 10;"></i>
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary" style="width: 100%;">Register</button>
+        </form>
+        <p class="text-center mt-2" style="margin-top: 1rem;">
+            Already have an account? <a href="login.html">Log in</a>
+        </p>
+    </div>
+</body>
+
+</html>

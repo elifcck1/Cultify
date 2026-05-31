@@ -1,0 +1,218 @@
+# =============================================================================
+# CULTIFY — PROJE ANALİZİ VE YAPLANDIRMA (AI / ekip için tek kaynak)
+# =============================================================================
+# Oluşturulma bağlamı: Statik frontend, backend henüz yok (README).
+# Dil: Türkçe açıklamalar + kodda kullanılan İngilizce terimler.
+# =============================================================================
+
+meta:
+  ad: Cultify
+  tur: Statik çok sayfalı web uygulaması (SPA değil)
+  depo_kökü: Cultify-frontend
+  yapı_notu: |
+    README.md yapısı "frontend/index.html" diyor; gerçekte tek giriş
+    frontend/pages/index.html. Sunucuda document root seçimine göre linkler etkilenir.
+
+# -----------------------------------------------------------------------------
+# TEKNOLOJI YIĞINI
+# -----------------------------------------------------------------------------
+stack:
+  işaretleme: HTML5
+  stil:
+    - CSS (frontend/css/style.css — ana tema ve bileşen stilleri)
+    - Bootstrap 5.3.3 (CDN)
+  betik:
+    - Düz JavaScript (derleyici/modül paketi yok; import/export kullanılmıyor)
+  UI_kütüphaneleri:
+    - Font Awesome 6.5.1 (CDN)
+    - Swiper 11 (CDN — ana slider)
+  bileşenler:
+    - Web Components: app-header, app-footer (frontend/js/components.js)
+
+# -----------------------------------------------------------------------------
+# DOSYA HARİTASI (özet)
+# -----------------------------------------------------------------------------
+paths:
+  giriş_sayfaları:
+    - frontend/pages/index.html    # Discover, slider, grids, reviews
+    - frontend/pages/category.html # ?type=books|games|movies
+    - frontend/pages/detail.html   # ?id=item_x
+    - frontend/pages/login.html
+    - frontend/pages/register.html
+    - frontend/pages/profile.html  # kullanıcı profili (?user=handle)
+    - frontend/pages/setting.html
+    - frontend/pages/mylist.html
+    - frontend/pages/admin.html
+  çekirdek_js:
+    - frontend/js/app.js           # Çoğu sayfa mantığı, formlar, gridler, modal
+    - frontend/js/testData.js      # "Backend simülasyonu" — localStorage
+    - frontend/js/components.js    # Ortak üstbilgi ve altbilgi
+  statik_varlıklar:
+    - frontend/images/
+    - frontend/css/style.css
+
+# -----------------------------------------------------------------------------
+# ÇALIŞMA AKIŞI (veri ve oturum)
+# -----------------------------------------------------------------------------
+data_flow:
+  içerik_kaynağı:
+    açıklama: |
+      Tüm içerik CRUD’un çoğu getContentDB() / saveContentDB() üzerinden
+      localStorage anahtarı 'cultify_test_content' içinde tutuluyor.
+  kimlik_dogrulama:
+    iki_katmanli_durum: |
+      1) app.js: cultify_logged_in, cultify_user_name, cultify_user_role,
+         cultify_user_avatar (otel bilgisi için)
+      2) testData.js: cultify_current_user_id ve kullanıcı dizisi USERS anahtarı
+      PHP/backend geçişinde tek oturum modeli seçilmeli (cookie/JWT vs).
+  yetkilendirme:
+    - Üye: profil bağlantıları login zorunluluğu (app.js içinde delegation)
+    - Admin: kullanıcı role === 'admin' → admin navigasyon öğesi
+  yorumlar:
+    - Varsayılan: pending; liste görünümü onaylı veya statusesiz eski kayıtlar
+
+# -----------------------------------------------------------------------------
+# POZİTİF PROMPTLAR (AI / geliştirici yönergeleri — ne yapılmalı)
+# -----------------------------------------------------------------------------
+positive_prompts: |
+  - Bu projede yeni özellik eklerken önce frontend/js/app.js ve gerekliyse
+    frontend/js/testData.js ile aynı stili koru (global fonksiyonlar, sıra: components → testData → app).
+  - Sayfa kökleri frontend/pages altında; göreli asset yollarını ../ ile koru.
+  - İçerik türleri tags[0] ile ayrılıyor: Book | Game | Movie | Series — yeni tip
+    eklenecekse filtreleri ve seed yapısını tutarlı güncelle.
+  - Erişilebilirlik ve Bootstrap desenleriyle uyumlu, mevcut CSS değişkenlerini kullan.
+  - Backend bağlandığında testData içindeki fonksiyon imzalarını koruyarak ince bir
+    api.js katmanına taşımayı önceliklendir (mevcut sayfalar az değişsin).
+  - Admin ve yorum onayı akışı (pending → approved) API tarafında da aynı kuraları yansıtsın.
+  - Şifre ve KVKK: production’da şifreyi saklama veya düz metin API gönderimi yapma—
+    backend hashing + HTTPS zorunlu.
+
+# -----------------------------------------------------------------------------
+# NEGATİF PROMPTLAR (AI / geliştirici kısıtları — ne yapılmamalı)
+# -----------------------------------------------------------------------------
+negative_prompts: |
+  - Projeye gereksiz yere webpack/vite/npm ekleyip tek dosyayı "modernleştirmek için"
+    tüm yapıyı bozma; istenmedikçe build aracı ekleme.
+  - components.js içinde pathPrefix/rootPrefix'i sayfa klasöründen çıkmadan rasgele
+    değiştirme — index ve pages arası linke regressions çıkar.
+  - testData.js içindeki localStorage anahtarlarını migration planı olmadan yeniden
+    adlandırma (mevcut kullanıcı verisi sıfırlanır).
+  - fetch/CORS/session davranışını düşünmeden file:// ile test edip "PHP bağlanmıyor"
+    varsayımı yapma — önce yerel HTTP sunucusu kullan.
+  - XSS için yorum/detay içeriklerini PHP’ye geçirirken filtresiz innerHTML ile basma.
+
+# -----------------------------------------------------------------------------
+# PHP / GERÇEK BACKEND — "ENGELLEYEN" KISIMlar ve ÇÖZÜMLER
+# -----------------------------------------------------------------------------
+# Not: Kodda bilinçli bir "PHP'yi blokla" satırı yok; engel mimari —
+# tüm veri katmanının tarayıcıda localStorage ile simüle edilmesi ve HTTP API yokluğu.
+
+backend_integration:
+
+  blok_B1_simüle_backend:
+    konum:
+      - frontend/js/testData.js (başlık yorumları, initTestData, tüm getters/setters)
+    ne_engelliyor: |
+      Uygulama gerçek ağ çağrısı yapmadığı için PHP uçlarına hiç trafik gitmez.
+      Aynı isimlerle çalışan sunucu olsa bile entegrasyon yazılmadıkça bağlanılmaz.
+    çözüm: |
+      - Yeni dosya örn. frontend/js/api.js: BASE_URL yapılandırması (development/production).
+      - testData içindeki her public fonksiyon için paralel async API sürümü yaz
+        ve USE_MOCK_LOCAL env veya tek boolean bayrak ile dallan.
+      - İlk faz: sadece okuma uçları (içerik listesi/detay); yazma sonra.
+
+  blok_B2_oturum_split:
+    konum:
+      - frontend/js/app.js (cultify_logged_in, ...)
+      - frontend/js/testData.js (cultify_current_user_id — STORAGE_KEYS.CURRENT_USER)
+    ne_engelliyor: |
+      Oturum hem app.js anahtarları hem testData kullanıcı id ile gidiyor.
+      Backend cookie tabanlı session kullanırsa senkron tutulmayan yarış koşulları olur.
+    çözüm: |
+      - Giriş başarılı cevaptan sonra tek kaynak: sunucunun Set-Cookie’si +
+        opsiyonel client’te sadece UI için isim/tema/cache.
+      - loginUser()/logoutUser() çağrılarını backend yanıtına bağla; localStorage'daki
+        cultify_logged_in kullanıcı id ile tutarsızsa düzelt.
+
+  blok_B3_initTestData_ilk_yazma_kilidi:
+    konum: frontend/js/testData.js — initTestData()
+    ne_engelliyor: |
+      Anahtar bir kez oluşunca seed tekrar uygulanmaz. PHP'den ilk senkronizasyon
+      yapılsa bile tarayıcı eski local içerik tutabilir.
+    çözüm: |
+      - Sürüm alanı ekleyin: örn. localStorage 'cultify_data_version'.
+      - Backend semver veya tarih ile uyuşmuyorsa cache temizleyip yeniden çek.
+      - Veya tamamen remote kaynağa geçince local CONTENT anahtarını kaldır.
+
+  blok_B4_parola_ve_güvenlik_borcu:
+    konum: testData içinde kullanıcı nesnelerinde password düz metin
+    ne_engelliyor: |
+      PHP tarafına aynı model taşınırsa güvenlik ve uyumluluk sorunu doğar.
+    çözüm: |
+      - Kayıtta asla düz şifre saklamayı bırak; password_hash (PHP) + login endpoint.
+      - Client sadece POST ile iletir; localStorage’a şifre yazma.
+
+  blok_B5_cors_ve_cookie:
+    konum: (şu an yok — gelecek PHP API)
+    ne_engelliyor: |
+      Farklı origin (frontend statik hosting + PHP subdomain) seçilirse tarayıcı
+      isteklerini bloklar veya kimlik çerezleri gitmez.
+    çözüm: |
+      - Aynı site için reverse proxy ile tek origin veya doğru Access-Control-Allow
+        ile credentials: 'include' eşlemesi.
+      - SameSite=Lax/Secure ayarları ve CSRF token (POST formları için).
+
+  blok_B6_dosya_yolu_ve_document_root:
+    konum: README.md yapı uyumsuzluğu; index yalnızca pages altında
+    ne_engelliyor: |
+      Apache/nginx document root yanlışsa index.html bulunamaz ve JS yolları kırılır.
+    çözüm: |
+      - Sunucuda root olarak frontend/pages veya üst klasör seçip index yönlendirmesi;
+        veya kök index’ten pages/index.html’e rewrite.
+      - Resim url’leri için backend’den mutlak CDN veya /assets tabanı önerilir.
+
+  blok_B7_formlar_multipart_ve_admin_görsel:
+    konum: frontend/pages/admin.html — saveContent, base64 görsel
+    ne_engelliyor: |
+      Büyük base64 içerik localStorage’a yazılır; PHP’de POST limit ve DB boyutu ile çakışır.
+    çözüm: |
+      - Upload için multipart/form-data + dosya saklama (disk/S3).
+      - API yanıtında görsel URL döndürüp CONTENT kaydına url koy.
+
+# -----------------------------------------------------------------------------
+# OLASI REST UÇ TAŞLASI (PHP ile uyum için referans — uygulanmadı)
+# -----------------------------------------------------------------------------
+suggested_rest_sketch:
+  kimlik:
+    - POST /api/auth/login
+    - POST /api/auth/register
+    - POST /api/auth/logout
+    - GET  /api/me
+  içerik:
+    - GET /api/items
+    - GET /api/items/{id}
+    - POST/PATCH /api/items (admin)
+  kullanıcı_eşlemesi_testData:
+    getContentDB -> GET items aggregate
+    getUser/getUserById -> users + session
+    getCommentsForItem -> GET items/{id}/comments
+    setRating -> PUT ratings
+    getUserList / addToUserList -> lists resource
+
+# -----------------------------------------------------------------------------
+# TEST VE HATA GİDERME
+# -----------------------------------------------------------------------------
+ops:
+  yerel_calistirma: |
+    file:// ile açılırsa bazı özellikler çalışsa da cookie/CORS/php proxy testi yapılamaz.
+    Önerilen: Python `python -m http.server 8080` veya nginx içinde frontend/pages kökünden.
+  veri_sifirlama: |
+    Konsolda resetTestData() (testData.js window’a export eder) ile tüm sahte backend sıfırlanır.
+
+# -----------------------------------------------------------------------------
+# SÜRÜM
+# -----------------------------------------------------------------------------
+config_schema_version: "1.1"
+last_reviewed_notes: |
+  Projede vite.config / proxy tanımı yok; PHP entegrasyonu için proxy veya
+  tam URL tabanlı api.js gerekecek.

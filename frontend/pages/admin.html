@@ -1,0 +1,290 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cultify - Admin</title>
+    <link rel="icon" type="image/svg+xml" href="../images/main-logo.svg">
+    <link rel="stylesheet" href="../css/style.css">
+    <link rel="stylesheet" href="../css/tag-colors.css">
+    <link rel="stylesheet" href="../css/admin.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <script src="../js/config.js"></script>
+    <script src="../js/api-client.js"></script>
+    <script src="../js/cultify-data.js"></script>
+    <script src="../js/app.js"></script>
+    <script src="../js/minimal.js"></script>
+    <script src="../js/admin.js"></script>
+</head>
+
+<body class="admin-page">
+
+    <!-- Mobile Top Bar -->
+    <div class="admin-mobile-topbar">
+        <button class="admin-hamburger" id="admin-sidebar-toggle" aria-label="Toggle menu">
+            <span></span><span></span><span></span>
+        </button>
+        <a href="index.html" class="brand">
+            <img src="../images/main-logo.svg" alt="Cultify Logo" class="brand-logo">
+            <span>Cultify Master</span>
+        </a>
+    </div>
+
+    <!-- Sidebar Overlay (mobile) -->
+    <div class="admin-sidebar-overlay" id="admin-sidebar-overlay"></div>
+
+    <!-- Sidebar -->
+    <aside class="admin-sidebar" id="admin-sidebar">
+        <div class="admin-sidebar-header">
+            <a href="index.html" class="brand">
+                <img src="../images/main-logo.svg" alt="Cultify Logo" class="brand-logo">
+                <span>Cultify Master</span>
+            </a>
+        </div>
+
+        <nav class="admin-sidebar-nav">
+            <a href="#" class="admin-nav-item active" data-section="library">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="3" width="7" height="7" />
+                    <rect x="14" y="3" width="7" height="7" />
+                    <rect x="3" y="14" width="7" height="7" />
+                    <rect x="14" y="14" width="7" height="7" />
+                </svg>
+                Library
+            </a>
+            <a href="#" class="admin-nav-item" data-section="users">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                    <circle cx="9" cy="7" r="4" />
+                    <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                    <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                </svg>
+                Users
+            </a>
+            <a href="#" class="admin-nav-item" data-section="reviews">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                </svg>
+                Pending Reviews
+                <span class="badge-count hidden" id="pending-reviews-count">0</span>
+            </a>
+            <a href="#" class="admin-nav-item" data-section="all-reviews">
+                <i class="fa-solid fa-comments" style="width:20px; font-size:18px;"></i>
+                All Reviews
+            </a>
+        </nav>
+
+        <div class="admin-sidebar-categories">
+            <h4 class="admin-sidebar-section-title">Stats</h4>
+            <div id="admin-category-stats">
+                <!-- Filled by JS -->
+            </div>
+        </div>
+
+        <!-- Site Stats -->
+        <div class="admin-sidebar-categories">
+            <div id="admin-overall-stats">
+                <div class="admin-category-item">
+                    <span class="admin-category-name">Total Users</span>
+                    <span class="admin-category-count" id="sidebar-total-users">0</span>
+                </div>
+                <div class="admin-category-item">
+                    <span class="admin-category-name">Total Reviews</span>
+                    <span class="admin-category-count" id="sidebar-total-reviews">0</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bottom: Back to site -->
+        <div class="admin-sidebar-footer">
+
+            <a href="#" id="admin-logout-link" class="admin-nav-item">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                    <polyline points="16 17 21 12 16 7" />
+                    <line x1="21" y1="12" x2="9" y2="12" />
+                </svg>
+                Logout
+            </a>
+        </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="admin-main" id="admin-main">
+        <!-- Library Section -->
+        <section class="admin-section active" id="section-library">
+            <div class="admin-section-header">
+                <h1>Content Library</h1>
+                <button class="btn btn-primary" onclick="window.adminOpenAddForm()">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="12" y1="5" x2="12" y2="19" />
+                        <line x1="5" y1="12" x2="19" y2="12" />
+                    </svg>
+                    Add Content
+                </button>
+            </div>
+
+            <!-- Add/Edit Form (Hidden by default) -->
+            <div id="admin-content-form-wrap" class="card hidden" style="margin-bottom: 1.5rem; padding: 1.5rem;">
+                <h3 id="admin-content-form-title">Add Content</h3>
+                <div class="form-group">
+                    <label>Type</label>
+                    <select id="add-type" class="form-control">
+                        <option value="Movie">Movie</option>
+                        <option value="Series">Series</option>
+                        <option value="Game">Game</option>
+                        <option value="Book">Book</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Title</label>
+                    <input type="text" id="add-name" class="form-control" placeholder="e.g. Inception">
+                </div>
+                <div class="form-group">
+                    <label>Description</label>
+                    <textarea id="add-detail" class="form-control" rows="3"
+                        placeholder="Brief description..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Tags</label>
+                    <div id="admin-selected-tags" class="admin-tag-pills"></div>
+                    <select id="add-tag-select" class="form-control">
+                        <option value="" disabled selected>Select a tag...</option>
+                        <optgroup label="Film & TV">
+                            <option value="Action">Action</option>
+                            <option value="Adventure">Adventure</option>
+                            <option value="Animation">Animation</option>
+                            <option value="Comedy">Comedy</option>
+                            <option value="Crime">Crime</option>
+                            <option value="Documentary">Documentary</option>
+                            <option value="Drama">Drama</option>
+                            <option value="Family">Family</option>
+                            <option value="Fantasy">Fantasy</option>
+                            <option value="History">History</option>
+                            <option value="Horror">Horror</option>
+                            <option value="Musical">Musical</option>
+                            <option value="Mystery">Mystery</option>
+                            <option value="Romance">Romance</option>
+                            <option value="Sci-Fi">Sci-Fi</option>
+                            <option value="Thriller">Thriller</option>
+                            <option value="War">War</option>
+                            <option value="Western">Western</option>
+                        </optgroup>
+                        <optgroup label="Gaming">
+                            <option value="RPG">RPG</option>
+                            <option value="FPS">FPS</option>
+                            <option value="Strategy">Strategy</option>
+                            <option value="Simulation">Simulation</option>
+                            <option value="Platformer">Platformer</option>
+                            <option value="Puzzle">Puzzle</option>
+                            <option value="Racing">Racing</option>
+                            <option value="Sports">Sports</option>
+                            <option value="Shooter">Shooter</option>
+                            <option value="Multiplayer">Multiplayer</option>
+                            <option value="MMO">MMO</option>
+                            <option value="Open-World">Open-World</option>
+                            <option value="Sandbox">Sandbox</option>
+                            <option value="Indie">Indie</option>
+                            <option value="Racing">Racing</option>
+
+                        </optgroup>
+
+                    </select>
+                </div>
+                <div class="grid" style="margin-bottom:0; gap:1rem;">
+                    <div class="form-group">
+                        <label>Year</label>
+                        <input type="text" id="add-year" class="form-control" placeholder="2010">
+                    </div>
+                    <div class="form-group">
+                        <label>Length / Pages</label>
+                        <input type="text" id="add-time" class="form-control" placeholder="148 min">
+                    </div>
+                    <div class="form-group">
+                        <label>Creator / Director</label>
+                        <input type="text" id="add-author" class="form-control" placeholder="Christopher Nolan">
+                    </div>
+                    <div class="form-group">
+                        <label>Age Rating</label>
+                        <input type="text" id="add-age" class="form-control" placeholder="+13">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Poster Image (upload)</label>
+                    <input type="file" id="add-image-file" class="form-control" accept="image/*">
+                    <img id="add-image-preview" src=""
+                        style="max-width: 150px; margin-top: 10px; display: none; border-radius: 4px;">
+                </div>
+                <div style="margin-top: 1rem;">
+                    <button id="admin-save-content-btn" class="btn btn-primary" onclick="window.adminSaveContent()">Save
+                        Content</button>
+                    <button class="btn btn-danger" onclick="window.adminCloseAddForm()"
+                        style="margin-left: 0.5rem;">Cancel</button>
+                </div>
+            </div>
+
+            <!-- Library Controls -->
+            <div class="index-controls mb-2" style="margin-top: 1.5rem;">
+                <div class="category-filters" style="margin-bottom: 0; padding-bottom: 0;">
+                    <button class="filter-pill active" onclick="window.setAdminLibraryFilter('All')">All</button>
+                    <button class="filter-pill filter-movie" onclick="window.setAdminLibraryFilter('Movie')">Movies</button>
+                    <button class="filter-pill filter-series"
+                        onclick="window.setAdminLibraryFilter('Series')">Series</button>
+                    <button class="filter-pill filter-game" onclick="window.setAdminLibraryFilter('Game')">Games</button>
+                    <button class="filter-pill filter-book" onclick="window.setAdminLibraryFilter('Book')">Books</button>
+                </div>
+
+                <div class="search-wrap">
+                    <i class="fa-solid fa-magnifying-glass search-icon"></i>
+                    <input type="text" id="admin-library-search" class="search-input" placeholder="Search library...">
+                </div>
+            </div>
+
+            <!-- Content List -->
+            <div id="admin-content-list" style="display: flex; flex-direction: column; gap: 0.5rem;">
+                Loading library...
+            </div>
+        </section>
+
+        <!-- Users Section -->
+        <section class="admin-section" id="section-users">
+            <div class="admin-section-header">
+                <h1>Users</h1>
+                <span id="admin-users-total" class="admin-total-text"></span>
+            </div>
+            <div id="admin-users" style="display: flex; flex-direction: column; gap: 0.5rem;">
+                Loading...
+            </div>
+        </section>
+
+        <!-- Reviews Section -->
+        <section class="admin-section" id="section-reviews">
+            <div class="admin-section-header">
+                <h1>Pending Reviews</h1>
+                <span id="admin-reviews-total" class="admin-total-text"></span>
+            </div>
+            <div id="admin-comments" style="display: flex; flex-direction: column; gap: 0.5rem;">
+                Loading...
+            </div>
+        </section>
+
+        <!-- All Reviews Section -->
+        <section class="admin-section" id="section-all-reviews">
+            <div class="admin-section-header">
+                <h1>All Reviews</h1>
+                <span id="admin-all-reviews-total" class="admin-total-text"></span>
+            </div>
+            <div id="admin-all-reviews-list" style="display: flex; flex-direction: column; gap: 0.5rem;">
+                Loading...
+            </div>
+        </section>
+    </main>
+</body>
+
+</html>
